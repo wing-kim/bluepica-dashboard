@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>블루피카 | 프로젝트 대시보드</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0f14; --surface: #161920; --surface2: #1e2230; --border: #2a2f42;
+      --accent: #4f8ef7; --accent2: #7dd3c0; --accent3: #f5a623; --accent4: #e05c73;
+      --text: #e8eaf2; --text-muted: #7a82a0; --text-dim: #4a5070;
+      --radius: 12px; --font-body: 'Noto Sans KR', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; font-size: 14px; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 36px; border-bottom: 1px solid var(--border);
+      background: var(--surface); position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--accent); }
+    .logo span { color: var(--text-muted); font-size: 13px; font-family: var(--font-body); margin-left: 10px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .last-updated { font-size: 11px; color: var(--text-dim); }
+
+    .icon-btn {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+      cursor: pointer; font-size: 13px; font-family: var(--font-body);
+      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+      color: var(--text-muted); transition: background 0.2s, color 0.2s;
+    }
+    .icon-btn:hover { background: var(--border); color: var(--text); }
+    .icon-btn.accent { color: var(--accent); }
+    .icon-btn.spinning .si { animation: spin 0.8s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .tabs {
+      display: flex; gap: 4px; padding: 0 36px;
+      border-bottom: 1px solid var(--border); background: var(--surface); overflow-x: auto;
+    }
+    .tab {
+      padding: 14px 20px; cursor: pointer; font-size: 13px; color: var(--text-muted);
+      border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.2s, border-color 0.2s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+    main { padding: 28px 36px; max-width: 1400px; margin: 0 auto; }
+    .section-title {
+      font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 18px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .status-box {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 70px 20px; color: var(--text-muted); gap: 12px;
+    }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    .status-box p { font-size: 13px; }
+    .status-box small { font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.7; }
+    .setup-cta {
+      margin-top: 6px; background: var(--accent); color: #fff; border: none;
+      border-radius: 8px; padding: 9px 20px; font-family: var(--font-body); font-size: 13px;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .setup-cta:hover { opacity: 0.85; }
+
+    .table-wrapper { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { background: var(--surface2); }
+    th { padding: 12px 16px; text-align: left; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(79,142,247,0.04); }
+
+    .timeline-grid { display: flex; flex-direction: column; gap: 10px; }
+    .timeline-item {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 20px; display: grid; grid-template-columns: 220px 1fr auto;
+      align-items: center; gap: 16px; transition: border-color 0.2s;
+    }
+    .timeline-item:hover { border-color: var(--accent); }
+    .tl-label { font-weight: 500; font-size: 13px; }
+    .tl-period { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .tl-bar-wrap { background: var(--surface2); border-radius: 6px; height: 8px; overflow: hidden; }
+    .tl-bar { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.6s ease; }
+    .tl-duration { font-size: 12px; color: var(--accent2); white-space: nowrap; text-align: right; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+    .card-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .card-value { font-size: 22px; font-weight: 700; color: var(--text); }
+    .card-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 999; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+      padding: 32px; width: 540px; max-width: 96vw;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6); animation: modalIn 0.2s ease;
+    }
+    @keyframes modalIn { from { opacity:0; transform: translateY(10px); } }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 2px 8px; border-radius: 6px; }
+    .modal-close:hover { background: var(--surface2); color: var(--text); }
+    .modal-desc { font-size: 12px; color: var(--text-muted); line-height: 1.65; margin-bottom: 20px; }
+
+    .how-to {
+      background: var(--surface2); border-radius: 10px; padding: 14px 16px;
+      margin-bottom: 22px; font-size: 12px; color: var(--text-muted); line-height: 1.9;
+    }
+    .how-to strong { color: var(--accent2); }
+    .url-ex {
+      background: var(--bg); border-radius: 6px; padding: 8px 12px;
+      font-family: monospace; font-size: 11px; color: var(--text-muted);
+      margin: 6px 0; word-break: break-all;
+    }
+    .url-ex em { color: var(--accent3); font-style: normal; font-weight: 700; }
+
+    .field-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .field-row { display: flex; gap: 8px; align-items: center; }
+    .field input {
+      flex: 1; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 14px; color: var(--text); font-size: 13px;
+      font-family: var(--font-body); outline: none; transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--text-dim); }
+    .field input[readonly] { color: var(--text-dim); cursor: default; }
+
+    .test-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 11px;
+      font-family: var(--font-body); white-space: nowrap; transition: all 0.2s; min-width: 58px; text-align: center;
+    }
+    .test-btn:hover { background: var(--border); }
+    .test-btn.ok  { border-color: var(--accent2); color: var(--accent2); background: rgba(125,211,192,0.08); }
+    .test-btn.fail{ border-color: var(--accent4); color: var(--accent4); background: rgba(224,92,115,0.08); }
+
+    .modal-foot { display: flex; align-items: center; gap: 10px; }
+    .saved-msg { font-size: 12px; color: var(--accent2); display: none; margin-right: auto; }
+    .saved-msg.show { display: block; }
+    .btn-cancel {
+      background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+      padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px;
+      font-family: var(--font-body); transition: background 0.2s; margin-left: auto;
+    }
+    .btn-cancel:hover { background: var(--surface2); }
+    .btn-save {
+      background: var(--accent); border: none; color: #fff; padding: 10px 24px;
+      border-radius: 8px; cursor: pointer; font-size: 13px; font-family: var(--font-body);
+      font-weight: 600; transition: opacity 0.2s;
+    }
+    .btn-save:hover { opacity: 0.85; }
+
+    @media (max-width: 700px) {
+      header, .tabs, main { padding-left: 16px; padding-right: 16px; }
+      .timeline-item { grid-template-columns: 1fr; }
+      .last-updated { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">BLUEPICA <span>프로젝트 시뮬레이션 대시보드</span></div>
+  <div class="header-right">
+    <div class="last-updated" id="lastUpdated"></div>
+    <button class="icon-btn" onclick="openSettings()">⚙️ 시트 연결 설정</button>
+    <button class="icon-btn accent" id="refreshBtn" onclick="loadAll()">
+      <span class="si">↻</span> 새로고침
+    </button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tab active" data-tab="timeline">📅 프로젝트 타임라인</div>
+  <div class="tab" data-tab="lease">🏢 임대차계약현황</div>
+  <div class="tab" data-tab="personal">👤 개인비용정리</div>
+  <div class="tab" data-tab="corp">🏦 법인비용정리</div>
+</nav>
+
+<main>
+  <section class="tab-panel active" id="panel-timeline">
+    <div class="cards" id="cards-timeline"></div>
+    <div class="section-title">단계별 타임라인</div>
+    <div id="content-timeline"></div>
+  </section>
+  <section class="tab-panel" id="panel-lease">
+    <div class="section-title">임대차계약현황</div>
+    <div id="content-lease"></div>
+  </section>
+  <section class="tab-panel" id="panel-personal">
+    <div class="section-title">개인비용정리</div>
+    <div id="content-personal"></div>
+  </section>
+  <section class="tab-panel" id="panel-corp">
+    <div class="section-title">법인비용정리</div>
+    <div id="content-corp"></div>
+  </section>
+</main>
+
+<!-- ══ SETTINGS MODAL ══ -->
+<div class="modal-overlay" id="settingsModal" onclick="bgClose(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">⚙️ 구글시트 연결 설정</div>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-desc">
+      각 탭의 <strong>gid</strong> 값을 입력하면 구글시트와 자동 연결됩니다.<br>
+      설정은 이 브라우저에 저장되고, 구글시트 데이터는 읽기 전용으로 불러옵니다.
+    </div>
+
+    <div class="how-to">
+      <strong>gid 찾는 방법</strong><br>
+      구글시트에서 연결할 <strong>탭을 클릭</strong>하면 URL이 바뀝니다:
+      <div class="url-ex">
+        https://docs.google.com/spreadsheets/d/…/edit#gid=<em>835667947</em>
+      </div>
+      URL 끝의 <strong style="color:var(--accent3)">gid=</strong> 뒤 숫자를 복사해서 아래에 붙여넣고<br>
+      <strong>연결 확인</strong> 버튼으로 테스트 후 <strong>저장 &amp; 적용</strong>을 누르세요.
+    </div>
+
+    <div class="field-group">
+      <div class="field">
+        <label>스프레드시트 ID</label>
+        <input readonly value="17lL6O55R56PGODOu-iM5EBH4a6ZbWEJfkypcdWzlGHA" />
+      </div>
+      <div class="field">
+        <label>📅 프로젝트 타임라인 — gid</label>
+        <div class="field-row">
+          <input id="g-timeline" placeholder="예: 835667947" />
+          <button class="test-btn" id="tb-timeline" onclick="testGid('timeline')">연결 확인</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>🏢 임대차계약현황 — gid</label>
+        <div class="field-row">
+          <input id="g-lease" placeholder="구글시트 탭 클릭 후 URL에서 복사" />
+          <button class="test-btn" id="tb-lease" onclick="testGid('lease')">연결 확인</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>👤 개인비용정리 — gid</label>
+        <div class="field-row">
+          <input id="g-personal" placeholder="구글시트 탭 클릭 후 URL에서 복사" />
+          <button class="test-btn" id="tb-personal" onclick="testGid('personal')">연결 확인</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>🏦 법인비용정리 — gid</label>
+        <div class="field-row">
+          <input id="g-corp" placeholder="구글시트 탭 클릭 후 URL에서 복사" />
+          <button class="test-btn" id="tb-corp" onclick="testGid('corp')">연결 확인</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <div class="saved-msg" id="savedMsg">✅ 저장 완료! 데이터를 불러옵니다…</div>
+      <button class="btn-cancel" onclick="closeSettings()">취소</button>
+      <button class="btn-save" onclick="saveSettings()">저장 &amp; 적용</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '17lL6O55R56PGODOu-iM5EBH4a6ZbWEJfkypcdWzlGHA';
+
+/* ── Config ── */
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem('bp_cfg') || '{}'); } catch { return {}; }
+}
+function setConfig(c) { localStorage.setItem('bp_cfg', JSON.stringify(c)); }
+
+function csvUrl(gid) {
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+}
+
+/* ── Modal ── */
+function openSettings() {
+  const c = getConfig();
+  ['timeline','lease','personal','corp'].forEach(k => {
+    document.getElementById('g-'+k).value = c[k] || (k==='timeline' ? '835667947' : '');
+    const tb = document.getElementById('tb-'+k);
+    tb.className = 'test-btn'; tb.textContent = '연결 확인';
+  });
+  document.getElementById('savedMsg').classList.remove('show');
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+function bgClose(e) { if (e.target.id==='settingsModal') closeSettings(); }
+
+function saveSettings() {
+  const c = {};
+  ['timeline','lease','personal','corp'].forEach(k => {
+    c[k] = document.getElementById('g-'+k).value.trim();
+  });
+  setConfig(c);
+  document.getElementById('savedMsg').classList.add('show');
+  setTimeout(() => { closeSettings(); loadAll(); }, 1100);
+}
+
+async function testGid(key) {
+  const gid = document.getElementById('g-'+key).value.trim();
+  const btn = document.getElementById('tb-'+key);
+  if (!gid) { btn.className='test-btn fail'; btn.textContent='gid 없음'; return; }
+  btn.className='test-btn'; btn.textContent='확인 중…';
+  try {
+    const r = await fetch(csvUrl(gid));
+    if (!r.ok) throw 0;
+    const t = await r.text();
+    if (t.length < 5) throw 0;
+    btn.className='test-btn ok'; btn.textContent='✓ 연결됨';
+  } catch {
+    btn.className='test-btn fail'; btn.textContent='✗ 실패';
+  }
+}
+
+/* ── CSV ── */
+function parseCSV(txt) {
+  const rows=[]; let f='', row=[], q=false;
+  for (let i=0;i<txt.length;i++) {
+    const c=txt[i];
+    if (q) { if(c==='"'&&txt[i+1]==='"'){f+='"';i++;}else if(c==='"')q=false;else f+=c; }
+    else {
+      if(c==='"')q=true;
+      else if(c===','){row.push(f.trim());f='';}
+      else if(c==='\n'||(c==='\r'&&txt[i+1]==='\n')){
+        if(c==='\r')i++; row.push(f.trim());rows.push(row);row=[];f='';
+      } else f+=c;
+    }
+  }
+  if(f||row.length){row.push(f.trim());rows.push(row);}
+  return rows;
+}
+
+async function fetchSheet(gid) {
+  const r = await fetch(csvUrl(gid));
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  return parseCSV(await r.text());
+}
+
+/* ── Render helpers ── */
+function showLoading(id) {
+  document.getElementById(id).innerHTML =
+    `<div class="status-box"><div class="spinner"></div><p>데이터 불러오는 중…</p></div>`;
+}
+function showNoGid(id, label) {
+  document.getElementById(id).innerHTML = `
+    <div class="status-box">
+      <div style="font-size:36px">🔗</div>
+      <p><strong>${label}</strong> 탭의 gid가 설정되지 않았습니다.</p>
+      <small>우측 상단 <strong>⚙️ 시트 연결 설정</strong> 버튼을 눌러<br>해당 시트의 gid를 입력해 주세요.</small>
+      <button class="setup-cta" onclick="openSettings()">⚙️ 지금 설정하기</button>
+    </div>`;
+}
+function showErr(id, label) {
+  document.getElementById(id).innerHTML = `
+    <div class="status-box">
+      <div style="font-size:36px">⚠️</div>
+      <p>${label} 데이터를 불러오지 못했습니다.</p>
+      <small>구글시트가 <strong>웹에 게시</strong>되어 있는지 확인하세요.<br>(파일 → 공유 → 웹에 게시 → 게시)</small>
+      <button class="setup-cta" onclick="openSettings()">⚙️ 설정 확인</button>
+    </div>`;
+}
+
+/* ── Timeline render ── */
+function renderTimeline(rows) {
+  const data = rows.slice(3).filter(r => r[1]&&r[1].trim());
+  const total = data.reduce((s,r)=>s+(parseInt((r[3]||'').replace(/\D/g,''))||0),0);
+  document.getElementById('cards-timeline').innerHTML = `
+    <div class="card"><div class="card-label">총 단계</div><div class="card-value">${data.length}</div><div class="card-sub">개의 프로세스</div></div>
+    <div class="card"><div class="card-label">합산 기간</div><div class="card-value">${total}<span style="font-size:14px;font-weight:400">개월</span></div><div class="card-sub">소요 기간 합계</div></div>
+    <div class="card"><div class="card-label">착공 예정</div><div class="card-value" style="font-size:16px">2029.07</div><div class="card-sub">공사 시작</div></div>
+    <div class="card"><div class="card-label">준공 예정</div><div class="card-value" style="font-size:16px">2030.12</div><div class="card-sub">공사 완료</div></div>
+  `;
+  const maxM = 18;
+  document.getElementById('content-timeline').innerHTML = `<div class="timeline-grid">${
+    data.map(r => {
+      const m = parseInt((r[3]||'').replace(/\D/g,''))||0;
+      const pct = Math.min(100, Math.round(m/maxM*100));
+      return `<div class="timeline-item">
+        <div><div class="tl-label">${r[1]}</div><div class="tl-period">${r[2]||''}</div></div>
+        <div class="tl-bar-wrap"><div class="tl-bar" style="width:${pct}%"></div></div>
+        <div class="tl-duration">${r[3]||'—'}</div>
+      </div>`;
+    }).join('')
+  }</div>`;
+}
+
+/* ── Generic table ── */
+function renderTable(rows, id) {
+  const ne = rows.filter(r=>r.some(c=>c));
+  if (!ne.length) { document.getElementById(id).innerHTML=`<div class="status-box"><p>데이터가 없습니다.</p></div>`; return; }
+  const hdr = ne[0], body = ne.slice(1);
+  const cols = hdr.reduce((a,_,ci)=>{ if(hdr[ci]||body.some(r=>r[ci]))a.push(ci); return a; },[]);
+  const ths = cols.map(ci=>`<th>${hdr[ci]||''}</th>`).join('');
+  const trs = body.map(r=>`<tr>${cols.map(ci=>`<td>${r[ci]||''}</td>`).join('')}</tr>`).join('');
+  document.getElementById(id).innerHTML =
+    `<div class="table-wrapper"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
+/* ── Load all ── */
+async function loadOne(key, label, cid, renderFn, cardId) {
+  const gid = (getConfig()[key] || (key==='timeline' ? '835667947' : ''));
+  if (cardId) document.getElementById(cardId).innerHTML = '';
+  if (!gid) { showNoGid(cid, label); return; }
+  showLoading(cid);
+  try {
+    const rows = await fetchSheet(gid);
+    renderFn(rows);
+  } catch { showErr(cid, label); }
+}
+
+async function loadAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  await Promise.all([
+    loadOne('timeline','프로젝트 타임라인','content-timeline', renderTimeline, 'cards-timeline'),
+    loadOne('lease','임대차계약현황','content-lease', r=>renderTable(r,'content-lease')),
+    loadOne('personal','개인비용정리','content-personal', r=>renderTable(r,'content-personal')),
+    loadOne('corp','법인비용정리','content-corp', r=>renderTable(r,'content-corp')),
+  ]);
+  document.getElementById('lastUpdated').textContent =
+    '마지막 업데이트: ' + new Date().toLocaleString('ko-KR',{timeZone:'Asia/Seoul'});
+  btn.classList.remove('spinning');
+}
+
+/* ── Tabs ── */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+}));
+
+loadAll();
+</script>
+</body>
+</html>
