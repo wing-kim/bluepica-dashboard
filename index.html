@@ -572,111 +572,165 @@ function renderTimeline(rows){
   }).join('');
 
   document.getElementById('content-timeline').innerHTML=`
-    <div class="gantt-wrap"><div class="gantt-inner">
+    <div style="overflow-x:auto;overflow-y:hidden;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface)"><div class="gantt-inner">
       <div class="gantt-hdr"><div class="glc">단계</div><div class="gtc"><div class="yr-row">${yH}</div><div class="mo-row">${mH}</div></div></div>
       ${phRows}${msRows}
     </div></div>`;
 }
 
 /* ══════════════════════════════════════════
-   LEASE — 건물별 2컬럼 레이아웃
-   시트 컬럼: [0]주소 [1]층 [2]임차인명 [3]임대시작 [4]임대종료 [5]만료상태 [6]보증금 [7]월임대료 [8]월관리비
+   LEASE — 실제 시트 구조 기반
+   섹션헤더: r[0]="1. 압구정로 112"
+   컬럼헤더: r[1]="층" r[2]="임차인"...
+   데이터: r[0]=건물주소 r[1]=층 r[2]=임차인 r[3]=임대시작 r[4]=임대종료
+           r[5]=보증금 r[6]=월임대료 r[7]=월관리비 r[8]=월계 r[9]=보증금환급월
+   소계행: r[2]="합계"
 ══════════════════════════════════════════ */
 function renderLease(rows){
-  console.log('[LEASE] raw rows:', rows.slice(0,5));
+  console.log('[LEASE] raw rows:', rows.slice(0,6));
 
-  // 주소가 비어있으면 이전 행 주소 상속 (병합셀 대응)
-  let lastAddr='';
-  const dr=[];
+  // 섹션별로 파싱
+  const sections=[];
+  let curSection=null;
+
   rows.forEach(r=>{
-    const addr=String(r[0]||'').trim();
-    const name=String(r[2]||'').trim();
-    // 헤더/빈행 스킵
-    if(!name)return;
-    if(['임차인','임차인명','건물','주소','항목','층'].includes(name))return;
-    if(['건물','주소','항목'].includes(addr))return;
-    if(addr)lastAddr=addr;
-    if(!lastAddr)return;
-    dr.push([lastAddr,r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8]]);
+    const c0=String(r[0]||'').trim();
+    const c1=String(r[1]||'').trim();
+    const c2=String(r[2]||'').trim();
+
+    // 섹션 헤더: r[0]이 "1. ..." 또는 "2. ..." 패턴
+    if(/^\d+\./.test(c0)){
+      curSection={title:c0.replace(/^\d+\.\s*/,''),tenants:[]};
+      sections.push(curSection);
+      return;
+    }
+    // 컬럼 헤더행 스킵: r[1]="층" or r[2]="임차인"
+    if(c1==='층'||c2==='임차인'||c2==='임차인명')return;
+    // 소계/합계행 스킵
+    if(c2==='합계'||c1==='합계'||c0==='합계')return;
+    // 빈행 스킵
+    if(!c2&&!c1)return;
+    // 데이터행
+    if(curSection&&(c2||c1)){
+      curSection.tenants.push({
+        bldg:c0,
+        floor:c1,
+        name:c2,
+        start:String(r[3]||'').trim(),
+        end:String(r[4]||'').trim(),
+        deposit:pn(r[5]),
+        rent:pn(r[6]),
+        mgmt:pn(r[7]),
+        total:pn(r[8]),
+        refund:String(r[9]||'').trim()
+      });
+    }
   });
 
-  if(!dr.length){console.log('[LEASE] no data after filter');showNoGid('content-lease','임차인 현황');return;}
-
-  // 주소 정규화 후 건물별 그룹핑
-  const bmap=new Map();
-  dr.forEach(r=>{
-    let k=String(r[0]).trim();
-    if(k.includes('112')&&!k.includes('8길'))k='압구정로 112';
-    else if(k.includes('8길'))k='압구정로8길 3';
-    if(!bmap.has(k))bmap.set(k,[]);
-    bmap.get(k).push(r);
-  });
-
-  function sbdg(s){
-    if(!s)return'';const sl=s.toLowerCase();
-    if(sl.includes('만료')||sl.includes('종료'))return bdg(s,'br');
-    if(sl.includes('곧')||sl.includes('임박')||sl.includes('soon'))return bdg('⚠ '+s,'bo');
-    return bdg('✓ '+s,'bg');
+  // 섹션이 없으면 fallback: 기존 방식으로 처리
+  if(!sections.length||!sections.some(s=>s.tenants.length)){
+    showNoGid('content-lease','임차인 현황');return;
   }
 
-  let tR=0,tM=0,tD=0,tN=0,blocksHtml='';
+  // 만료상태 배지
+  function expBadge(endDate){
+    if(!endDate)return'';
+    const end=new Date(endDate.replace(/\./g,'-'));
+    const now=new Date();
+    const diff=(end-now)/(1000*60*60*24*30);
+    if(diff<0)return bdg('만료','br');
+    if(diff<6)return bdg('⚠ '+Math.round(diff)+'개월 후','bo');
+    return bdg('✓ '+endDate,'bg');
+  }
 
-  bmap.forEach((ten,bldg)=>{
-    tN+=ten.length;
-    const bR=ten.reduce((s,r)=>s+pn(r[7]),0);
-    const bM=ten.reduce((s,r)=>s+pn(r[8]),0);
-    const bD=ten.reduce((s,r)=>s+pn(r[6]),0);
-    tR+=bR; tM+=bM; tD+=bD;
-
-    const tenantRows=ten.map(r=>`
-      <div class="tenant-row">
-        <div class="tenant-floor">${r[1]||'—'}</div>
-        <div class="tenant-body">
-          <div class="tenant-name">${r[2]||''}</div>
-          <div class="tenant-period">${r[3]||''} ~ ${r[4]||''}</div>
-          <div class="tenant-nums">
-            <div class="tenant-kv">보증금 <b>${pn(r[6]).toLocaleString()}만</b></div>
-            <div class="tenant-kv">월 임대 <b style="color:var(--accent2)">${pn(r[7]).toLocaleString()}</b></div>
-            <div class="tenant-kv">관리비 <b>${pn(r[8]).toLocaleString()}</b></div>
-            <div class="tenant-kv">월 합계 <b style="color:var(--accent2)">${(pn(r[7])+pn(r[8])).toLocaleString()}</b></div>
-          </div>
-        </div>
-        <div class="tenant-badge">${sbdg(r[5]||'')}</div>
-      </div>`).join('');
-
-    blocksHtml+=`
-      <div class="lease-block">
-        <div class="lease-block-hdr">
-          <span style="font-size:14px">📍</span>
-          <span class="lease-block-addr">${bldg}</span>
-          <div class="lease-block-stats">
-            <div class="lease-bkv"><div class="lease-bkl">임차인</div><div class="lease-bkn">${ten.length}명</div></div>
-            <div class="lease-bkv"><div class="lease-bkl">월 합계</div><div class="lease-bkn" style="color:var(--accent2)">${(bR+bM).toLocaleString()}</div></div>
-            <div class="lease-bkv"><div class="lease-bkl">보증금</div><div class="lease-bkn" style="color:var(--accent3)">${(bD/10000).toFixed(0)}만</div></div>
-          </div>
-        </div>
-        ${tenantRows}
-        <div class="lease-subtotal">
-          <span class="lease-subtotal-l">소계 — ${ten.length}개 임차인</span>
-          <span class="lease-subtotal-r">${(bR+bM).toLocaleString()}원 / 월</span>
-        </div>
-      </div>`;
+  // 전체 합계
+  let allDeposit=0,allRent=0,allMgmt=0,allCount=0;
+  sections.forEach(s=>{
+    s.tenants.forEach(t=>{allDeposit+=t.deposit;allRent+=t.rent;allMgmt+=t.mgmt;allCount++;});
   });
 
+  // 섹션별 블록 렌더링
+  // 압구정로 112 / 압구정로8길 3 → 2컬럼, 토지임대료 → 별도 full-width
+  const mainSections=sections.filter(s=>!s.title.includes('토지'));
+  const landSections=sections.filter(s=>s.title.includes('토지'));
+
+  function renderSection(s){
+    const sDeposit=s.tenants.reduce((a,t)=>a+t.deposit,0);
+    const sRent=s.tenants.reduce((a,t)=>a+t.rent,0);
+    const sMgmt=s.tenants.reduce((a,t)=>a+t.mgmt,0);
+
+    const rows2=s.tenants.map(t=>`
+      <div class="tenant-row">
+        <div class="tenant-floor">${t.floor||'—'}</div>
+        <div class="tenant-body">
+          <div class="tenant-name">${t.name}</div>
+          <div class="tenant-period">${t.start} ~ ${t.end}</div>
+          <div class="tenant-nums">
+            <div class="tenant-kv">보증금 <b style="color:var(--accent3)">${(t.deposit/10000).toFixed(0)}만</b></div>
+            <div class="tenant-kv">월임대 <b style="color:var(--accent2)">${t.rent.toLocaleString()}</b></div>
+            <div class="tenant-kv">관리비 <b>${t.mgmt.toLocaleString()}</b></div>
+            <div class="tenant-kv">월합계 <b style="color:var(--text)">${(t.rent+t.mgmt).toLocaleString()}</b></div>
+          </div>
+        </div>
+        <div class="tenant-badge">${expBadge(t.end)}</div>
+      </div>`).join('');
+
+    return`<div class="lease-block">
+      <div class="lease-block-hdr">
+        <span>📍</span>
+        <span class="lease-block-addr">${s.title}</span>
+        <div class="lease-block-stats">
+          <div class="lease-bkv"><div class="lease-bkl">임차인</div><div class="lease-bkn">${s.tenants.length}명</div></div>
+          <div class="lease-bkv"><div class="lease-bkl">월 합계</div><div class="lease-bkn" style="color:var(--accent2)">${(sRent+sMgmt).toLocaleString()}</div></div>
+          <div class="lease-bkv"><div class="lease-bkl">보증금</div><div class="lease-bkn" style="color:var(--accent3)">${(sDeposit/100000000).toFixed(1)}억</div></div>
+        </div>
+      </div>
+      ${rows2}
+      <div class="lease-subtotal">
+        <span class="lease-subtotal-l">소계 ${s.tenants.length}개 임차인</span>
+        <span class="lease-subtotal-r">${(sRent+sMgmt).toLocaleString()}원 / 월</span>
+      </div>
+    </div>`;
+  }
+
+  function renderLandSection(s){
+    return s.tenants.map(t=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:13px 16px;background:var(--surface);border:1px solid rgba(245,166,35,.2);border-radius:var(--radius);margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:14px">🏗</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px">${t.name} — ${t.bldg||s.title}</div>
+            <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">${t.start} ~ ${t.end}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:20px;align-items:center">
+          <div style="text-align:right"><div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">보증금</div><div style="font-size:13px;font-weight:700;font-family:var(--font-mono);color:var(--accent3)">${(t.deposit/100000000).toFixed(1)}억</div></div>
+          <div style="text-align:right"><div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">월 임대료</div><div style="font-size:13px;font-weight:700;font-family:var(--font-mono);color:var(--accent2)">${t.rent.toLocaleString()}</div></div>
+          <div style="text-align:right">${expBadge(t.end)}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  const mainHtml=mainSections.map(renderSection).join('');
+  const landHtml=landSections.length?`
+    <div class="st" style="margin-top:4px"><span class="dot" style="background:var(--accent3)"></span>토지 임대료</div>
+    ${landSections.map(renderLandSection).join('')}`:'';
+
   document.getElementById('cards-lease').innerHTML=`
-    <div class="card cb"><div class="card-label">총 임차인</div><div class="card-value">${tN}</div><div class="card-sub">${bmap.size}개 건물</div></div>
-    <div class="card cg"><div class="card-label">월 임대료</div><div class="card-value sm">${fmt(tR)}원</div><div class="card-sub">관리비 제외</div></div>
-    <div class="card"><div class="card-label">월 관리비</div><div class="card-value sm">${fmt(tM)}원</div></div>
-    <div class="card cy"><div class="card-label">월 합계</div><div class="card-value sm">${fmt(tR+tM)}원</div></div>
-    <div class="card"><div class="card-label">보증금 합계</div><div class="card-value sm">${(tD/10000).toFixed(1)}억</div></div>`;
+    <div class="card cb"><div class="card-label">총 임차인</div><div class="card-value">${allCount}</div><div class="card-sub">${mainSections.length}개 건물</div></div>
+    <div class="card cg"><div class="card-label">월 임대료</div><div class="card-value sm">${fmt(allRent)}원</div><div class="card-sub">관리비 제외</div></div>
+    <div class="card"><div class="card-label">월 관리비</div><div class="card-value sm">${fmt(allMgmt)}원</div></div>
+    <div class="card cy"><div class="card-label">월 합계</div><div class="card-value sm">${fmt(allRent+allMgmt)}원</div></div>
+    <div class="card"><div class="card-label">보증금 합계</div><div class="card-value sm">${(allDeposit/100000000).toFixed(1)}억</div></div>`;
 
   document.getElementById('content-lease').innerHTML=`
-    <div class="lease-grid">${blocksHtml}</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">
-      <span style="font-weight:700;color:var(--text-muted);font-size:12px">전체 합계 (${tN}개 임차인 · ${bmap.size}개 건물)</span>
+    <div class="lease-grid">${mainHtml}</div>
+    ${landHtml}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-top:12px">
+      <span style="font-weight:700;color:var(--text-muted);font-size:12px">전체 합계 (임차인 ${allCount}명)</span>
       <div style="display:flex;gap:20px;align-items:center">
-        <span style="font-size:11px;color:var(--text-muted)">보증금 <span style="color:var(--accent3);font-family:var(--font-mono);font-weight:700">${(tD/10000).toFixed(1)}억</span></span>
-        <span style="font-size:11px;color:var(--text-muted)">월 합계 <span style="color:var(--accent2);font-family:var(--font-mono);font-size:14px;font-weight:700">${(tR+tM).toLocaleString()}원</span></span>
+        <span style="font-size:11px;color:var(--text-muted)">보증금 <span style="color:var(--accent3);font-family:var(--font-mono);font-weight:700">${(allDeposit/100000000).toFixed(1)}억</span></span>
+        <span style="font-size:11px;color:var(--text-muted)">월 합계 <span style="color:var(--accent2);font-family:var(--font-mono);font-size:14px;font-weight:700">${(allRent+allMgmt).toLocaleString()}원</span></span>
       </div>
     </div>`;
 }
