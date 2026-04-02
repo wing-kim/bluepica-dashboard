@@ -396,15 +396,32 @@ async function testGid(key){
    시트 컬럼: [0]순번 [1]단계명 [2]시작(YYYY.MM) [3]종료(YYYY.MM) [4]색상(gb-xxx) [5]마일스톤(Y)
 ══════════════════════════════════════════ */
 function renderTimeline(rows){
-  // 데이터 필터: 2행 이상이고 시작/종료 컬럼이 있는 행만
-  const valid=rows.filter(r=>r[1]&&r[1].trim()&&String(r[2]||'').match(/\d{4}[.\-]\d{2}/)&&String(r[3]||'').match(/\d{4}[.\-]\d{2}/));
+  // 날짜 정규화: YYYY.MM / YYYY-MM / YYYY/MM / YYYY년 MM월 / YYYY-MM-DD 등 모두 수용
+  function normYM(s){
+    if(!s)return'';
+    s=String(s).trim();
+    // YYYY-MM-DD 또는 YYYY/MM/DD → YYYY.MM
+    let m=s.match(/(\d{4})[-\/.](\d{1,2})/);
+    if(m)return m[1]+'.'+(m[2].length===1?'0'+m[2]:m[2]);
+    // YYYY년 M월
+    m=s.match(/(\d{4})[년\s]+(\d{1,2})[월]?/);
+    if(m)return m[1]+'.'+(m[2].length===1?'0'+m[2]:m[2]);
+    return s;
+  }
+  function isValidYM(s){return/^\d{4}\.\d{2}$/.test(normYM(s));}
+
+  // 디버그: 원본 rows 콘솔 출력
+  console.log('[TIMELINE] raw rows from sheet:', rows.slice(0,5));
+
+  // 데이터 필터: 단계명 + 시작 + 종료가 파싱 가능한 행만 (헤더 행 자동 제외)
+  const valid=rows.filter(r=>r[1]&&r[1].trim()&&isValidYM(r[2])&&isValidYM(r[3]));
   const phases=[],milestones=[];
 
   if(valid.length>0){
-    console.log('[TIMELINE] using sheet data');
+    console.log('[TIMELINE] using sheet data, valid rows:', valid.length);
     document.getElementById('tl-src').textContent='';
     valid.forEach(r=>{
-      const obj={name:r[1].trim(),start:String(r[2]).trim().replace('-','.'),end:String(r[3]).trim().replace('-','.'),color:r[4]?r[4].trim():'gb-blue'};
+      const obj={name:r[1].trim(),start:normYM(r[2]),end:normYM(r[3]),color:r[4]?r[4].trim():'gb-blue'};
       if(String(r[5]||'').toUpperCase()==='Y') milestones.push(obj); else phases.push(obj);
     });
   } else {
@@ -427,7 +444,7 @@ function renderTimeline(rows){
     milestones.push({name:'건물 명도 완료',start:'2028.07',end:'2028.07',color:''});
   }
 
-  function toAbs(ym){const[y,m]=ym.split('.').map(Number);return y*12+m;}
+  function toAbs(ym){const parts=ym.split('.');return parseInt(parts[0]||0)*12+parseInt(parts[1]||1);}
   const allAbs=[...phases,...milestones].flatMap(p=>[toAbs(p.start),toAbs(p.end)]);
   const rS=Math.min(...allAbs),rE=Math.max(...allAbs)+1,total=rE-rS;
   function pct(a){return(((a-rS)/total)*100).toFixed(4)+'%';}
