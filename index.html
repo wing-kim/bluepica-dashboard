@@ -302,6 +302,25 @@ td:first-child{color:var(--t1);font-weight:500}
 .pg[disabled]{opacity:.3;cursor:default}
 .pg.on{background:var(--blue);border-color:var(--blue);color:#fff}
 
+/* ═══════════════════════════════════════════════════
+   CORP — 법인비용 Cash Flow 추가 스타일
+═══════════════════════════════════════════════════ */
+.cf-table td.ym{font-family:var(--mono);font-size:11.5px;color:var(--blue);font-weight:500}
+.cf-table tr.yr-group td{
+  background:rgba(26,31,46,.9);font-size:11px;font-weight:700;
+  color:var(--t2);letter-spacing:.8px;
+  border-top:2px solid var(--border2);padding:6px 14px;
+}
+.cf-table tr.yr-total td{
+  background:rgba(26,31,46,.7);font-weight:600;
+  border-top:1px solid var(--border2);color:var(--t1);padding:7px 14px;
+}
+.cf-table tr.net-row td{
+  background:rgba(240,56,96,.07);
+  border-top:2px solid rgba(240,56,96,.3);
+  font-weight:700;padding:10px 14px;
+}
+
 @media(max-width:900px){
   .irr-addr-grid{grid-template-columns:1fr}
   .g-row{flex-wrap:wrap}.g-info{width:100%}
@@ -1150,11 +1169,407 @@ function renderPersonal(rows){
 }
 
 /* ════════════════════════════════════════════════════════════
-   5. CORP — 법인비용 (기존 renderCost 구조 유지)
+   5. CORP — 법인비용 Cash Flow
+   ★ 구글 시트 데이터 100% 실시간 반영 (하드코딩 없음)
+   ★ fetch/parseCSV/시트 연동 구조 일절 변경 없음
+   ─────────────────────────────────────────────────────────
+   [카테고리 자동 분류]
+     · 설계비:   항목명에 설계|design 포함
+     · 감리비:   항목명에 감리|supervision 포함
+     · 공사비:   항목명에 공사|시공|건축|construction 포함
+     · 토지임대료: 항목명에 토지|지대|토지임대 포함
+     · 기타:     위에 해당하지 않는 모든 항목
+   [납부방식 컬럼 → 월별 분배 로직]
+     · "매월" / "월별" 포함  → 기간 내 균등 분배
+     · "n회 분할" 포함       → n 회 균등 분배
+     · "일시" 포함           → 시작월 100% 반영
+     · (기본)               → 기간 내 균등 분배
 ════════════════════════════════════════════════════════════ */
+function renderCorp(rows){
+  const sec=document.getElementById('sec-corp');
+  if(!rows||rows.length<2){sec.innerHTML=errHTML('데이터 없음');return;}
+
+  const hi=findHdrRow(rows);
+  const hdr=rows[hi];
+  const data=rows.slice(hi+1).filter(r=>r.some(c=>c));
+
+  /* ── 컬럼 자동 탐색 (시트 헤더명 기반, 하드코딩 없음) ── */
+  const iIdx  =hdr.findIndex(h=>/항목|내용|구분명|name|item/i.test(h));
+  const amtIdx=hdr.findIndex(h=>/월금액|월액|월비용|monthly|금액(?!합)|amount/i.test(h));
+  const totIdx=hdr.findIndex(h=>/총액|합계|total|sum/i.test(h));
+  const stIdx =hdr.findIndex(h=>/시작|start|from|계약시작/i.test(h));
+  const edIdx =hdr.findIndex(h=>/종료|end|to|만료/i.test(h));
+  const perIdx=hdr.findIndex(h=>/기간|period|개월/i.test(h));
+  const payIdx=hdr.findIndex(h=>/납부|지급|payment|방법/i.test(h));
+  const noteIdx=hdr.findIndex(h=>/비고|메모|note|remark/i.test(h));
+  const stgIdx=hdr.findIndex(h=>/단계|phase|stage/i.test(h));
+
+  /* ── 헬퍼 ── */
+  const sv=(r,i)=>i>=0?(r[i]||''):'';
+  const av=(r,i)=>i>=0?parseAmt(r[i]):0;
+
+  /* ── 카테고리 분류 (시트 항목명 기반 자동 판별) ── */
+  const CAT={
+    design :{label:'설계비',   color:'#3b7fff', bg:'rgba(59,127,255,.12)',  pat:/설계|design/i},
+    super  :{label:'감리비',   color:'#9060f0', bg:'rgba(144,96,240,.12)', pat:/감리|supervision|감독/i},
+    const_ :{label:'공사비',   color:'#f07830', bg:'rgba(240,120,48,.12)', pat:/공사|시공|건축|construction|철거/i},
+    land   :{label:'토지임대료',color:'#f5bc30', bg:'rgba(245,188,48,.12)', pat:/토지|지대|토지임대/i},
+    other  :{label:'기타',     color:'#8890aa', bg:'rgba(136,144,170,.10)',pat:null},
+  };
+  function getCat(r){
+    const item=sv(r,iIdx);
+    for(const[k,c] of Object.entries(CAT)){
+      if(c.pat&&c.pat.test(item))return k;
+    }
+    return'other';
+  }
+
+  /* ── 기간(개월) 추출 ── */
+  function getPer(r){
+    if(perIdx>=0){const p=parseInt(String(sv(r,perIdx)).replace(/[^0-9]/g,''));if(!isNaN(p)&&p>0)return p;}
+    if(stIdx>=0&&edIdx>=0){
+      const sm=sv(r,stIdx).match(/(\d{4})[.\-\/년\s]*(\d{1,2})/);
+      const em=sv(r,edIdx).match(/(\d{4})[.\-\/년\s]*(\d{1,2})/);
+      if(sm&&em){const d=(+sm[1]-+em[1])*-12+(+em[2]-+sm[2]);if(d>0)return d+1;}
+    }
+    return 1;
+  }
+
+  /* ── 총액 ── */
+  function getTotal(r){
+    if(totIdx>=0){const t=av(r,totIdx);if(t>0)return t;}
+    return av(r,amtIdx)*getPer(r)||0;
+  }
+
+  /* ── 시작월 파싱 → {y,m} ── */
+  function getStart(r){
+    const s=sv(r,stIdx).trim();
+    const m=s.match(/(\d{4})[.\-\/년\s]*(\d{1,2})/);
+    if(m)return{y:+m[1],mo:+m[2]};
+    return null;
+  }
+
+  /* ── 납부방식 파싱 → 'monthly'|'lumpsum'|number(n회 분할) ── */
+  function getPayMode(r){
+    const p=sv(r,payIdx).trim();
+    if(/일시/i.test(p))return'lumpsum';
+    const nm=p.match(/(\d+)\s*회/);
+    if(nm)return parseInt(nm[1]);
+    // 매월/월별/분할 → monthly
+    return'monthly';
+  }
+
+  /* ── 특정 월의 카테고리별 비용 계산
+       시트 값 변경 → 이 함수가 새 값으로 자동 계산 ── */
+  function monthCatAmt(r,y,m){
+    const start=getStart(r);
+    if(!start)return 0;
+    const per=getPer(r);
+    const total=getTotal(r);
+    if(!total)return 0;
+    const mode=getPayMode(r);
+
+    const sy=start.y, sm=start.mo;
+    const cur=y*100+m;
+    const startN=sy*100+sm;
+
+    // 종료월 계산
+    let ey=sy,em=sm+per-1;
+    while(em>12){em-=12;ey++;}
+    const endN=ey*100+em;
+
+    if(cur<startN||cur>endN)return 0;
+
+    if(mode==='lumpsum'){
+      // 일시납: 시작월에만
+      return cur===startN?total:0;
+    }
+    if(typeof mode==='number'){
+      // n회 분할: 시작월부터 n개월마다 균등
+      const n=mode;
+      const perAmt=total/n;
+      // 해당 월이 분할 납부 시점인지 확인
+      const elapsed=(y-sy)*12+(m-sm);
+      const step=per>1?Math.floor((per-1)/(n-1||1)):0;
+      if(n===1)return cur===startN?total:0;
+      // 분할 시점: 0, step, 2*step, ... (n-1)*step
+      for(let i=0;i<n;i++){
+        const mo2=sm+i*step, y2=sy+Math.floor((mo2-1)/12);
+        const m2=((mo2-1)%12)+1;
+        if(y2===y&&m2===m)return perAmt;
+      }
+      return 0;
+    }
+    // monthly: 기간 균등 분배
+    return total/per;
+  }
+
+  /* ── 전체 월 범위 계산 ── */
+  let minY=9999,maxY=0;
+  data.forEach(r=>{
+    const st=getStart(r);
+    if(!st)return;
+    if(st.y<minY)minY=st.y;
+    const per=getPer(r);
+    let ey=st.y,em=st.mo+per-1;
+    while(em>12){em-=12;ey++;}
+    if(ey>maxY)maxY=ey;
+  });
+  if(minY===9999){minY=new Date().getFullYear();maxY=minY+2;}
+  maxY=Math.min(maxY,minY+10);
+
+  const months=[];
+  for(let y=minY;y<=maxY;y++)for(let m=1;m<=12;m++)months.push({y,m});
+
+  /* ── 카테고리별 총합 ── */
+  const catTotals={design:0,super:0,const_:0,land:0,other:0};
+  data.forEach(r=>{const cat=getCat(r);catTotals[cat]+=getTotal(r);});
+  const grandTotal=Object.values(catTotals).reduce((a,b)=>a+b,0);
+
+  /* ── 월별 × 카테고리 매트릭스 계산 ── */
+  const monthData=months.map(({y,m})=>{
+    const cats={design:0,super:0,const_:0,land:0,other:0};
+    data.forEach(r=>{cats[getCat(r)]+=monthCatAmt(r,y,m);});
+    const total=Object.values(cats).reduce((a,b)=>a+b,0);
+    return{y,m,cats,total};
+  });
+
+  // 데이터 있는 달만 필터 + 누적 계산
+  let cum=0;
+  const activeMonths=monthData.filter(d=>d.total>0).map(d=>{cum+=d.total;return{...d,cum};});
+
+  /* ── 진행 단계 컬럼 (stgIdx 있으면 시작일로 매칭) ── */
+  function getStageForMonth(y,m){
+    if(stgIdx<0)return'';
+    const ym=y*100+m;
+    // 해당 월에 걸쳐있는 행들의 단계 수집
+    const stages=new Set();
+    data.forEach(r=>{
+      const st=getStart(r);if(!st)return;
+      const per=getPer(r);
+      let ey=st.y,em=st.mo+per-1;
+      while(em>12){em-=12;ey++;}
+      if(ym>=st.y*100+st.mo&&ym<=ey*100+em){
+        const s=sv(r,stgIdx).trim();if(s)stages.add(s);
+      }
+    });
+    return[...stages].join(', ');
+  }
+
+  /* ═══════════════════════════════════════════
+     HTML 조립
+  ═══════════════════════════════════════════ */
+
+  /* ① KPI 카드 */
+  const kpiHTML=`<div class="kpi-row">
+    <div class="kpi r"><div class="kpi-lbl">전체 합계</div>
+      <div class="kpi-val" style="color:var(--red)">${fmtBig(grandTotal)}원</div>
+      <div class="kpi-sub">${data.length}건 항목</div></div>
+    ${Object.entries(CAT).map(([k,c])=>catTotals[k]?`
+    <div class="kpi b" style="--kpi-c:${c.color}">
+      <div class="kpi-lbl">${c.label}</div>
+      <div class="kpi-val" style="color:${c.color}">${fmtBig(catTotals[k])}원</div>
+      <div class="kpi-sub">${grandTotal?((catTotals[k]/grandTotal*100).toFixed(1))+'%':'—'}</div></div>`:'').join('')}
+  </div>`;
+
+  /* ② 카테고리별 요약 테이블 */
+  const summaryHTML=`<div class="cf-section">
+    <div class="cf-section-head">
+      <div class="cf-section-bar" style="background:var(--red)"></div>
+      <div class="cf-section-title">법인비용 카테고리 요약</div>
+      <div class="cf-section-sub">총 ${fmtBig(grandTotal)}원</div>
+    </div>
+    <div class="cf-table-wrap"><div style="overflow-x:auto">
+      <table class="cf-table">
+        <thead><tr>
+          <th>카테고리</th>
+          <th>항목 수</th>
+          <th class="r">총 금액</th>
+          <th class="r">비중</th>
+          <th style="min-width:140px">구성 비율</th>
+        </tr></thead>
+        <tbody>
+          ${Object.entries(CAT).map(([k,c])=>{
+            const items=data.filter(r=>getCat(r)===k);
+            if(!items.length)return'';
+            const tot=catTotals[k];
+            const pct=grandTotal?(tot/grandTotal*100).toFixed(1):0;
+            return`<tr>
+              <td><span style="display:inline-flex;align-items:center;gap:7px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></span>
+                <strong style="color:${c.color}">${c.label}</strong></span></td>
+              <td style="color:var(--t3)">${items.length}건</td>
+              <td class="r"><span class="exp">${fmtBig(tot)}원</span></td>
+              <td class="r" style="color:var(--yellow)">${pct}%</td>
+              <td>
+                <div style="background:var(--s3);border-radius:3px;height:6px;overflow:hidden;border:1px solid var(--border)">
+                  <div style="height:100%;width:${pct}%;background:${c.color};border-radius:3px;transition:width .8s"></div>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+          <tr class="subtotal-row">
+            <td><strong>합계</strong></td>
+            <td style="color:var(--t3)">${data.length}건</td>
+            <td class="r"><span class="exp" style="font-size:14px">${fmtBig(grandTotal)}원</span></td>
+            <td class="r" style="color:var(--yellow)">100%</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div></div>
+  </div>`;
+
+  /* ③ 항목별 상세 테이블 */
+  const itemsHTML=`<div class="cf-section">
+    <div class="cf-section-head">
+      <div class="cf-section-bar" style="background:#9060f0"></div>
+      <div class="cf-section-title">비용 항목 상세</div>
+      <div class="cf-section-sub">${data.length}건</div>
+    </div>
+    <div class="cf-table-wrap"><div style="overflow-x:auto">
+      <table class="cf-table">
+        <thead><tr>
+          <th>항목</th>
+          <th>카테고리</th>
+          <th>납부방식</th>
+          <th>기간</th>
+          <th class="r">월 금액</th>
+          <th class="r">총 금액</th>
+          ${noteIdx>=0?'<th>비고</th>':''}
+        </tr></thead>
+        <tbody>
+          ${(()=>{
+            // 카테고리 순으로 그룹핑 출력
+            let html='';
+            Object.entries(CAT).forEach(([k,c])=>{
+              const items=data.filter(r=>getCat(r)===k);
+              if(!items.length)return;
+              html+=`<tr class="yr-group"><td colspan="20" style="color:${c.color}">▸ ${c.label}</td></tr>`;
+              items.forEach(r=>{
+                const item=sv(r,iIdx)||'(항목없음)';
+                const per=getPer(r);
+                const total=getTotal(r);
+                const monthly=av(r,amtIdx)||(per?total/per:0);
+                const pay=sv(r,payIdx)||'—';
+                const note=sv(r,noteIdx);
+                const s=sv(r,stIdx),e=sv(r,edIdx);
+                const periodStr=s&&e?`${s} ~ ${e}`:(per>1?`${per}개월`:'—');
+                html+=`<tr>
+                  <td style="color:var(--t1);font-weight:500">${item}</td>
+                  <td><span style="font-size:10px;padding:1px 7px;border-radius:3px;border:1px solid ${c.color}33;background:${c.bg};color:${c.color}">${c.label}</span></td>
+                  <td style="color:var(--t3);font-size:11px">${pay}</td>
+                  <td style="font-family:var(--mono);font-size:11px;color:var(--t3)">${periodStr}</td>
+                  <td class="r">${monthly?`<span class="exp">${fmtBig(monthly)}원</span>`:`<span class="dim">—</span>`}</td>
+                  <td class="r"><span class="exp" style="font-weight:600">${fmtBig(total)}원</span></td>
+                  ${noteIdx>=0?`<td style="font-size:11px;color:var(--t3)">${note}</td>`:''}
+                </tr>`;
+              });
+              html+=`<tr class="subtotal-row">
+                <td colspan="${noteIdx>=0?5:4}" style="color:${c.color}">소계 — ${c.label}</td>
+                <td class="r"><span style="color:${c.color};font-family:var(--mono)">${fmtBig(catTotals[k])}원</span></td>
+                ${noteIdx>=0?'<td></td>':''}
+              </tr>`;
+            });
+            return html;
+          })()}
+          <tr class="net-row">
+            <td colspan="${noteIdx>=0?5:4}" style="font-size:13px">법인비용 총합계</td>
+            <td class="r" style="font-size:14px;color:var(--red)">${fmtBig(grandTotal)}원</td>
+            ${noteIdx>=0?'<td></td>':''}
+          </tr>
+        </tbody>
+      </table>
+    </div></div>
+  </div>`;
+
+  /* ④ 월별 Cash Flow 테이블 (핵심)
+     — 시트 금액·기간·납부방식 변경 시 자동 재계산 */
+  const cfHTML=`<div class="cf-section">
+    <div class="cf-section-head">
+      <div class="cf-section-bar" style="background:var(--red)"></div>
+      <div class="cf-section-title">월별 법인비용 Cash Flow</div>
+      <div class="cf-section-sub">${activeMonths.length}개월 · 총 ${fmtBig(grandTotal)}원</div>
+    </div>
+    <div class="cf-table-wrap"><div style="overflow-x:auto">
+      <table class="cf-table">
+        <thead><tr>
+          <th>연월</th>
+          ${stgIdx>=0?'<th>진행 단계</th>':''}
+          <th class="r" style="color:${CAT.design.color}">${CAT.design.label}</th>
+          <th class="r" style="color:${CAT.super.color}">${CAT.super.label}</th>
+          <th class="r" style="color:${CAT.const_.color}">${CAT.const_.label}</th>
+          <th class="r" style="color:${CAT.land.color}">${CAT.land.label}</th>
+          <th class="r" style="color:${CAT.other.color}">${CAT.other.label}</th>
+          <th class="r">월 총 비용</th>
+          <th class="r">누적 비용</th>
+        </tr></thead>
+        <tbody>
+          ${(()=>{
+            let html='',lastY=null,yrSum=0;
+            activeMonths.forEach(({y,m,cats,total,cum})=>{
+              /* 연도 구분 헤더 */
+              if(y!==lastY){
+                if(lastY!==null&&yrSum>0){
+                  html+=`<tr class="yr-total">
+                    <td colspan="${stgIdx>=0?8:7}">${lastY}년 소계</td>
+                    <td class="r"><span class="exp">${fmtBig(yrSum)}원</span></td>
+                  </tr>`;
+                }
+                html+=`<tr class="yr-group"><td colspan="${stgIdx>=0?9:8}">${y}년</td></tr>`;
+                lastY=y;yrSum=0;
+              }
+              yrSum+=total;
+              const stage=stgIdx>=0?getStageForMonth(y,m):'';
+              const ym=`${y}.${String(m).padStart(2,'0')}`;
+              const c=v=>v>0?`<span class="exp">${fmtBig(v)}원</span>`:`<span class="dim">—</span>`;
+              html+=`<tr>
+                <td class="ym">${ym}</td>
+                ${stgIdx>=0?`<td style="font-size:10px;color:var(--t3);max-width:120px;overflow:hidden;text-overflow:ellipsis">${stage||'—'}</td>`:''}
+                <td class="r">${c(cats.design)}</td>
+                <td class="r">${c(cats.super)}</td>
+                <td class="r">${c(cats.const_)}</td>
+                <td class="r">${c(cats.land)}</td>
+                <td class="r">${c(cats.other)}</td>
+                <td class="r" style="font-weight:600"><span class="exp">${fmtBig(total)}원</span></td>
+                <td class="r"><span class="neu">${fmtBig(cum)}원</span></td>
+              </tr>`;
+            });
+            if(lastY&&yrSum>0){
+              html+=`<tr class="yr-total">
+                <td colspan="${stgIdx>=0?8:7}">${lastY}년 소계</td>
+                <td class="r"><span class="exp">${fmtBig(yrSum)}원</span></td>
+              </tr>`;
+            }
+            /* 누적 합계 행 */
+            html+=`<tr class="net-row">
+              <td colspan="${stgIdx>=0?7:6}" style="font-size:13px">전체 합계</td>
+              <td class="r" style="font-size:13px;color:var(--red)">${fmtBig(grandTotal)}원</td>
+              <td class="r" style="font-size:13px;color:var(--blue)">${fmtBig(grandTotal)}원</td>
+            </tr>`;
+            return html||`<tr><td colspan="${stgIdx>=0?9:8}" style="text-align:center;padding:40px;color:var(--t4)">
+              시트에 시작일/종료일 또는 기간 데이터를 입력해주세요</td></tr>`;
+          })()}
+        </tbody>
+      </table>
+    </div></div>
+  </div>`;
+
+  /* ── 렌더링 ── */
+  sec.innerHTML=`
+    <div class="notice">📡 구글 시트 실시간 연동 · 법인비용 Cash Flow</div>
+    ${kpiHTML}
+    ${summaryHTML}
+    ${itemsHTML}
+    ${cfHTML}
+  `;
+}
+
+/* renderCost: personal 분기 유지, corp는 renderCorp로 위임 */
 function renderCost(k,rows){
-  /* personal 은 renderPersonal 로 분기 */
   if(k==='personal'){renderPersonal(rows);return;}
+  if(k==='corp'){renderCorp(rows);return;}
+  /* fallback: 다른 탭에 혹시 쓰이는 경우 */
   const sec=document.getElementById(`sec-${k}`);
   if(!rows||rows.length<2){sec.innerHTML=errHTML('데이터 없음');return;}
   const hi=findHdrRow(rows);const hdr=rows[hi];const data=rows.slice(hi+1).filter(r=>r.some(c=>c));
