@@ -119,70 +119,74 @@ td:first-child{color:var(--t1);font-weight:500}
 .empty-i{font-size:36px;margin-bottom:12px}
 
 /* ═══════════════════════════════════════════════════
-   TIMELINE — 컴팩트 행간 + 현재시점 마커
+   TIMELINE — 간트 차트 스타일 (단색 바 + 넓은 행간)
 ═══════════════════════════════════════════════════ */
-.tl-wrap{padding:0 20px 20px}
+.tl-wrap{padding:0 24px 24px}
 
 /* 눈금 헤더 행 */
-.tl-ruler-row{display:flex;align-items:stretch;padding-bottom:8px;
-  border-bottom:2px solid var(--border2);margin-bottom:0}
-.tl-ruler-lbl{width:200px;flex-shrink:0;display:flex;align-items:flex-end;
-  font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:1px;padding-right:12px;padding-bottom:4px}
-.tl-ruler-track{flex:1;position:relative;height:28px}
+.tl-ruler-row{display:flex;align-items:stretch;padding-bottom:10px;
+  border-bottom:1px solid var(--border2);margin-bottom:0}
+.tl-ruler-lbl{width:220px;flex-shrink:0;display:flex;align-items:flex-end;
+  font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:1px;
+  padding-right:16px;padding-bottom:4px}
+.tl-ruler-track{flex:1;position:relative;height:30px}
 .tl-ruler-years{display:flex;height:100%;position:absolute;inset:0}
 .tl-year-seg{flex:1;display:flex;align-items:center;justify-content:center;
-  font-family:var(--mono);font-size:10px;color:var(--t3);
+  font-family:var(--mono);font-size:11px;color:var(--t3);
   border-left:1px solid var(--border);position:relative}
 .tl-year-seg:first-child{border-left:none}
 .tl-year-seg.cur-y{color:var(--blue);font-weight:700}
-.tl-dur-head{width:70px;flex-shrink:0;display:flex;align-items:flex-end;
+.tl-dur-head{width:76px;flex-shrink:0;display:flex;align-items:flex-end;
   justify-content:flex-end;font-size:9px;color:var(--t4);text-transform:uppercase;
   letter-spacing:1px;padding-left:10px;padding-bottom:4px}
 
 /* 현재시점 수직선 (ruler 위) */
-.tl-now-line{position:absolute;top:0;bottom:-2px;width:2px;
-  background:var(--blue);box-shadow:0 0 8px rgba(59,127,255,.7);z-index:10;border-radius:1px}
-.tl-now-tag{position:absolute;top:2px;left:50%;transform:translateX(-50%);
+.tl-now-line{position:absolute;top:0;bottom:-1px;width:2px;
+  background:var(--blue);box-shadow:0 0 6px rgba(59,127,255,.5);z-index:10;border-radius:1px}
+.tl-now-tag{position:absolute;top:3px;left:50%;transform:translateX(-50%);
   font-family:var(--mono);font-size:8px;color:var(--blue);
-  background:rgba(8,9,13,.9);padding:1px 5px;border-radius:3px;
+  background:rgba(8,9,13,.95);padding:1px 5px;border-radius:3px;
   white-space:nowrap;letter-spacing:.5px}
 
-/* 각 행 */
+/* 각 행 — 여유 있는 줄간격 */
 .g-row{display:flex;align-items:center;
-  padding:4px 0;                          /* ← 줄간격 최소화 */
-  border-bottom:1px solid rgba(34,38,54,.45);
+  padding:14px 0;                         /* ← 행간 확보 */
+  border-bottom:1px solid rgba(34,38,54,.5);
   transition:background .12s}
 .g-row:last-child{border-bottom:none}
-.g-row:hover{background:rgba(59,127,255,.04)}
-.g-info{width:200px;flex-shrink:0;padding-right:12px}
-.g-name{font-size:12px;font-weight:500;color:var(--t1);line-height:1.35}
-.g-period-txt{font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:1px}
-.g-bar-area{flex:1;position:relative;height:24px;display:flex;align-items:center}
+.g-row:hover{background:rgba(59,127,255,.035)}
+.g-info{width:220px;flex-shrink:0;padding-right:16px}
+.g-name{font-size:13px;font-weight:500;color:var(--t1);line-height:1.4}
+.g-period-txt{font-family:var(--mono);font-size:10px;color:var(--t3);margin-top:3px}
+.g-bar-area{flex:1;position:relative;height:32px;display:flex;align-items:center}
 
 /* 연도 세로 그리드 (배경) */
-.g-vline{position:absolute;top:0;bottom:0;width:1px;background:rgba(42,48,80,.4);pointer-events:none}
+.g-vline{position:absolute;top:0;bottom:0;width:1px;
+  background:rgba(42,48,80,.35);pointer-events:none}
 /* 현재시점 수직선 (각 행) */
 .g-now-line{position:absolute;top:0;bottom:0;width:2px;
-  background:rgba(59,127,255,.3);z-index:4;pointer-events:none;border-radius:1px}
+  background:rgba(59,127,255,.25);z-index:4;pointer-events:none;border-radius:1px}
 
+/* 트랙 & 바 — 단색 직사각형 */
 .g-track{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
-  height:6px;background:var(--s3);border-radius:3px;border:1px solid var(--border)}
+  height:10px;background:rgba(26,31,46,.9);border-radius:3px;
+  border:1px solid rgba(42,48,80,.6)}
 .g-fill{height:100%;border-radius:3px;position:absolute;
-  transition:width .75s cubic-bezier(.4,0,.2,1)}
+  transition:width .8s cubic-bezier(.4,0,.2,1)}
 
-.g-dur{width:70px;flex-shrink:0;text-align:right;padding-left:10px;
-  font-family:var(--mono);font-size:11px;color:var(--t3)}
+.g-dur{width:76px;flex-shrink:0;text-align:right;padding-left:10px;
+  font-family:var(--mono);font-size:11.5px;color:var(--t2)}
 
-/* gradients */
-.gc0{background:linear-gradient(90deg,#3b7fff,#6c48f5)}
-.gc1{background:linear-gradient(90deg,#22d186,#3b7fff)}
-.gc2{background:linear-gradient(90deg,#f5bc30,#f07830)}
-.gc3{background:linear-gradient(90deg,#9060f0,#f03860)}
-.gc4{background:linear-gradient(90deg,#f07830,#f03860)}
-.gc5{background:linear-gradient(90deg,#22d186,#f5bc30)}
-.gc6{background:linear-gradient(90deg,#3b7fff,#22d186)}
-.gc7{background:linear-gradient(90deg,#f03860,#9060f0)}
-.gc8{background:linear-gradient(90deg,#f5bc30,#22d186)}
+/* ── 단색 팔레트 (그라데이션 제거) ── */
+.gc0{background:#4a7eff}   /* 블루       */
+.gc1{background:#6c5ce7}   /* 퍼플       */
+.gc2{background:#00b894}   /* 그린       */
+.gc3{background:#e17055}   /* 오렌지     */
+.gc4{background:#6c5ce7}   /* 퍼플       */
+.gc5{background:#0984e3}   /* 딥 블루    */
+.gc6{background:#00b894}   /* 그린       */
+.gc7{background:#d63031}   /* 레드       */
+.gc8{background:#74b9ff}   /* 라이트 블루 */
 
 /* ═══════════════════════════════════════════════════
    IRR
@@ -452,8 +456,8 @@ function renderTimeline(rows){
 
   // 컬럼: col1=항목, col2=기간, col3=소요, col4=기타
   const ni=1,pi=2,di=3,oi=4;
-  const YEAR_START=2026,YEAR_END=2030;
-  const TOTAL_MONTHS=(YEAR_END-YEAR_START+1)*12; // 60개월
+  const YEAR_START=2026,YEAR_END=2031;         /* 2031까지 확장(공사기간 포함) */
+  const TOTAL_MONTHS=(YEAR_END-YEAR_START+1)*12;
 
   // 현재 시점 계산
   const now=new Date();
@@ -518,14 +522,14 @@ function renderTimeline(rows){
 
   // 눈금 헤더
   const rulerHTML=`<div class="tl-ruler-row">
-    <div class="tl-ruler-lbl">연도</div>
+    <div class="tl-ruler-lbl">항목</div>
     <div class="tl-ruler-track">
       <div class="tl-ruler-years">${yearSegs.join('')}</div>
       <div class="tl-now-line" style="left:${nowPct}%">
         <div class="tl-now-tag">NOW</div>
       </div>
     </div>
-    <div class="tl-dur-head">기간</div>
+    <div class="tl-dur-head">소요</div>
   </div>`;
 
   // Gantt rows
