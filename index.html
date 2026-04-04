@@ -703,18 +703,26 @@ function renderIRR(rows){
   const hdr=rows[hi];
   const data=rows.slice(hi+1).filter(r=>r.some(c=>c));
 
-  /* 컬럼 자동 탐색 — 시트 헤더명 기반, 하드코딩 없음 */
-  const addrIdx    =hdr.findIndex(h=>/주소|소재지|위치|address|물건|대지|필지/i.test(h));
-  const yearIdx    =hdr.findIndex(h=>/매입년|매입연도|취득년|year|매입일/i.test(h));
-  const areaIdx    =hdr.findIndex(h=>/면적|㎡|평|area/i.test(h));
-  const buyPriceIdx=hdr.findIndex(h=>/매입가|매입총액|취득가|purchase|매입금액/i.test(h));
-  const loanIdx    =hdr.findIndex(h=>/대출|loan|담보|차입/i.test(h));
-  const depositIdx =hdr.findIndex(h=>/보증금|deposit/i.test(h));
-  const rentIdx    =hdr.findIndex(h=>/월세|월임대료|임대료(?!보)/i.test(h));
-  const landPrIdx  =hdr.findIndex(h=>/공시지가(?!기준)|단위공시|㎡당공시/i.test(h));
-  const landTotIdx =hdr.findIndex(h=>/공시지가기준|토지가격|공시총액/i.test(h));
-  const loanRateIdx=hdr.findIndex(h=>/금리|이율|대출금리|interest/i.test(h));
-  const noteIdx    =hdr.findIndex(h=>/비고|메모|note/i.test(h));
+  /* 컬럼 자동 탐색 — 시트 헤더명 기반, 하드코딩 없음
+     ★ 다양한 컬럼명 패턴 대응 (IRR 시트 전용 확장)              */
+  const addrIdx    =hdr.findIndex(h=>/주소|소재지|위치|address|물건|대지|필지|부동산|건물명/i.test(h));
+  const yearIdx    =hdr.findIndex(h=>/매입년|매입연도|취득년|year|매입일|취득일/i.test(h));
+  const areaIdx    =hdr.findIndex(h=>/면적|㎡|평수|area|규모/i.test(h));
+  const buyPriceIdx=hdr.findIndex(h=>/매입가|매입총액|취득가|purchase|매입금액|취득금액|매매가/i.test(h));
+  const loanIdx    =hdr.findIndex(h=>/대출|loan|담보|차입|융자/i.test(h));
+  const depositIdx =hdr.findIndex(h=>/보증금|deposit|임차보증/i.test(h));
+  const rentIdx    =hdr.findIndex(h=>/월세|월임대료|임대료(?!보)|월수입|rent/i.test(h));
+  const landPrIdx  =hdr.findIndex(h=>/공시지가(?!기준|합계|총)|단위공시|㎡당공시|단가공시/i.test(h));
+  const landTotIdx =hdr.findIndex(h=>/공시지가기준|공시.*총|토지가격|공시총액|공시합계/i.test(h));
+  const loanRateIdx=hdr.findIndex(h=>/금리|이율|대출금리|interest|이자율/i.test(h));
+  const noteIdx    =hdr.findIndex(h=>/비고|메모|note|remark/i.test(h));
+
+  /* 컬럼 탐색 결과 디버그 (콘솔 확인용 — 데이터 연동 이상 시 참고) */
+  console.log('[IRR 컬럼 탐색]',{
+    addrIdx,yearIdx,areaIdx,buyPriceIdx,loanIdx,depositIdx,
+    rentIdx,landPrIdx,landTotIdx,loanRateIdx,
+    hdrNames:hdr
+  });
 
   /* 헬퍼 */
   const sv=(r,i)=>i>=0?(r[i]||''):'';
@@ -737,63 +745,81 @@ function renderIRR(rows){
   }
 
   /* ── [UI 레이어] 상단 필지 정보 카드 빌더 (시트 값 그대로 표시) ── */
-  const CARD_ACCENTS=['linear-gradient(90deg,#3b7fff,#6c48f5)','linear-gradient(90deg,#22d186,#3b7fff)'];
+  /* ★ 자기자본은 계산값이므로 상단 카드에서 제외 — 결과 영역에서만 표시 */
+  const CARD_ACCENTS=['#4F7CFF','#3a6ee8'];
+
+  /* 필지명 정규화 — 실제 주소를 그대로 표시, fallback만 필지 A/B */
+  function getCardLabel(addr,idx){
+    /* 주소가 실제 값이면 그대로, 기본 fallback이면 주소 기반 라벨 */
+    if(!addr||addr==='기타')return ['A필지','B필지'][idx%2];
+    return addr;
+  }
 
   function buildPropertyCard(g,idx){
     const{addr,rows:gd}=g;
     const accent=CARD_ACCENTS[idx%CARD_ACCENTS.length];
 
-    /* 대표값: 첫 번째 행 기준 (필지별 1행이 일반적) */
+    /* 대표값: 행 전체 합산 우선 (다행 필지 지원) */
     const rep=gd[0]||[];
+    const sumAv=(idxCol)=>idxCol>=0?gd.reduce((s,r)=>s+av(r,idxCol),0):0;
 
     const year   =sv(rep,yearIdx);
-    const area   =sv(rep,areaIdx);
-    const buyP   =av(rep,buyPriceIdx)||gd.map(r=>av(r,buyPriceIdx)).reduce((a,b)=>a+b,0);
-    const loan   =av(rep,loanIdx)   ||gd.map(r=>av(r,loanIdx)).reduce((a,b)=>a+b,0);
-    const deposit=av(rep,depositIdx)||gd.map(r=>av(r,depositIdx)).reduce((a,b)=>a+b,0);
-    const rent   =av(rep,rentIdx)   ||gd.map(r=>av(r,rentIdx)).reduce((a,b)=>a+b,0);
-    const landPr =av(rep,landPrIdx);
-    const landTot=av(rep,landTotIdx)||gd.map(r=>av(r,landTotIdx)).reduce((a,b)=>a+b,0);
-    const loanR  =sv(rep,loanRateIdx);
+    const area   =sv(rep,areaIdx)||gd.map(r=>sv(r,areaIdx)).find(v=>v)||'';
+    /* 금액: 첫 행에 값이 있으면 우선, 없으면 합산 */
+    const buyP   =av(rep,buyPriceIdx)||sumAv(buyPriceIdx);
+    const loan   =av(rep,loanIdx)   ||sumAv(loanIdx);
+    const deposit=av(rep,depositIdx)||sumAv(depositIdx);
+    const rent   =av(rep,rentIdx)   ||sumAv(rentIdx);
+    const landPr =av(rep,landPrIdx) ||sumAv(landPrIdx);
+    const landTot=av(rep,landTotIdx)||sumAv(landTotIdx);
+    const loanR  =sv(rep,loanRateIdx)||gd.map(r=>sv(r,loanRateIdx)).find(v=>v)||'';
     const note   =sv(rep,noteIdx);
 
-    /* 공시지가 × 면적 = 현재 토지 가격 (계산값, 시트에 없으면 자동 계산) */
+    /* 공시지가 × 면적 = 현재 토지 가격 */
     const areaNum=parseFloat(String(area).replace(/[^0-9.]/g,''))||0;
     const landCalc=landTot||(landPr&&areaNum?landPr*areaNum:0);
 
-    /* 자기자본 = 매입가 − 대출 − 보증금 */
-    const equity=buyP-loan-deposit;
-
-    /* 정보 행 빌더 */
+    /* 정보 행 빌더 — 값이 없으면 행 자체를 생략 */
     const row=(lbl,val,cls='')=>val?`
       <div class="prop-row">
         <span class="prop-key">${lbl}</span>
         <span class="prop-val${cls?' '+cls:''}">${val}</span>
       </div>`:'';
 
-    const metaLine=[year?`${year}년 매입`:'',area?`${area}㎡`:'',note].filter(Boolean).join(' · ');
+    const metaLine=[year?`${year}년 매입`:'',area?`${area}`:'' ,note].filter(Boolean).join(' · ');
+    const displayAddr=getCardLabel(addr,idx);
+    /* 태그는 인덱스 기반 (A/B) */
+    const tagLabel=idx===0?'A필지':'B필지';
+    const tagCls  =idx===0?'tag-a':'tag-b';
+
+    /* 데이터가 하나도 없으면 안내 메시지 */
+    const hasData=buyP||loan||deposit||rent||landPr||landCalc;
 
     return`<div class="prop-card" style="--accent:${accent}">
       <div class="prop-head">
         <div>
-          <div class="prop-addr">${addr}</div>
+          <div class="prop-addr">${displayAddr}</div>
           ${metaLine?`<div class="prop-meta">${metaLine}</div>`:''}
         </div>
-        <span class="irr-addr-tag ${['tag-a','tag-b'][idx%2]}">${['A필지','B필지'][idx%2]}</span>
+        <span class="irr-addr-tag ${tagCls}">${tagLabel}</span>
       </div>
       <div class="prop-body">
-        ${row('매입 총액',   buyP   ?fmtBig(buyP)+'원':'—','pv-red')}
-        ${row('대출',        loan   ?fmtBig(loan)+'원':'—','pv-blue')}
-        ${row('자기자본',    equity&&equity>0?fmtBig(equity)+'원':'—','pv-yellow')}
-        ${row('보증금',      deposit?fmtBig(deposit)+'원':'—')}
-        ${row('월 임대료',   rent   ?fmtBig(rent)+'원/월':'—','pv-green')}
-        ${loanR?row('대출 금리',loanR):''}
-        ${row('공시지가',    landPr ?fmtBig(landPr)+'원/㎡':'—')}
-        ${landCalc?`<div class="prop-land-box">
-          <span class="prop-land-lbl">🏛️ 공시지가 기준 현재 토지 가격</span>
-          <span class="prop-land-val">${fmtBig(landCalc)}원</span>
-        </div>`:''}
-        ${gd.length>1?`<div style="margin-top:10px;font-size:10px;color:var(--t4)">${gd.length}개 행 합산 기준</div>`:''}
+        ${hasData?`
+          ${row('매입 총액', buyP   ?fmtBig(buyP)+'원'  :'','pv-red')}
+          ${row('대출',      loan   ?fmtBig(loan)+'원'  :'','pv-blue')}
+          ${row('보증금',    deposit?fmtBig(deposit)+'원':'')}
+          ${row('월 임대료', rent   ?fmtBig(rent)+'원/월':'','pv-green')}
+          ${loanR?row('대출 금리',loanR):''}
+          ${row('공시지가',  landPr ?fmtBig(landPr)+'원/㎡':'')}
+          ${landCalc?`<div class="prop-land-box">
+            <span class="prop-land-lbl">🏛️ 공시지가 기준 현재 토지 가격</span>
+            <span class="prop-land-val">${fmtBig(landCalc)}원</span>
+          </div>`:''}
+          ${gd.length>1?`<div style="margin-top:10px;font-size:10px;color:var(--t4)">${gd.length}개 행 합산 기준</div>`:''}
+        `:`<div style="padding:20px 0;text-align:center;font-size:12px;color:var(--t4)">
+          시트에서 데이터를 읽는 중이거나 해당 필지 컬럼이 없습니다.<br>
+          <span style="font-size:10px">컬럼명 확인: 매입가·대출·보증금·월세·공시지가</span>
+        </div>`}
       </div>
     </div>`;
   }
@@ -899,6 +925,12 @@ function renderIRR(rows){
           <input type="range" min="0" max="100000" step="1000" value="10000"
             oninput="irrSlider('newDep',this.value,'만')" id="sl_newDep">
         </div>
+        <!-- [추가] 신축 후 공실률 — 신축 임대 수익 계산에 반영 -->
+        <div class="calc-field">
+          <label>신축 후 공실률 <span class="calc-val-badge" id="lbl_newVacancy">10.0%</span></label>
+          <input type="range" min="0" max="50" step="1" value="10"
+            oninput="irrSlider('newVacancy',this.value,'%')" id="sl_newVacancy">
+        </div>
       </div>
 
       <!-- 블록 5: 분석 기간 -->
@@ -992,14 +1024,14 @@ function irrSlider(key,val,unit){
 function irrSetScenario(scen,btn){
   /* 시나리오별 값 매핑 (하드코딩이 아니라 상수 테이블) */
   const PRESETS={
-    conservative:{priceUp:1,rentUp:1,vacancy:10,rateA:4.5,rateB:4.5,constCost:420,designCost:6000,constMo:24,valueMult:1.8,pfRatio:50,pfRate:5.5,newRent:2000,newDep:8000,holdYrs:3,totalYrs:12},
-    base:        {priceUp:3,rentUp:2,vacancy:5, rateA:3.5,rateB:3.5,constCost:350,designCost:5000,constMo:18,valueMult:2.5,pfRatio:60,pfRate:4.5,newRent:3000,newDep:10000,holdYrs:5,totalYrs:15},
-    optimistic:  {priceUp:6,rentUp:3,vacancy:2, rateA:3.0,rateB:3.0,constCost:300,designCost:4000,constMo:14,valueMult:3.5,pfRatio:70,pfRate:3.8,newRent:4500,newDep:15000,holdYrs:7,totalYrs:18},
+    conservative:{priceUp:1,rentUp:1,vacancy:10,newVacancy:15,rateA:4.5,rateB:4.5,constCost:420,designCost:6000,constMo:24,valueMult:1.8,pfRatio:50,pfRate:5.5,newRent:2000,newDep:8000,holdYrs:3,totalYrs:12},
+    base:        {priceUp:3,rentUp:2,vacancy:5, newVacancy:10,rateA:3.5,rateB:3.5,constCost:350,designCost:5000,constMo:18,valueMult:2.5,pfRatio:60,pfRate:4.5,newRent:3000,newDep:10000,holdYrs:5,totalYrs:15},
+    optimistic:  {priceUp:6,rentUp:3,vacancy:2, newVacancy:5, rateA:3.0,rateB:3.0,constCost:300,designCost:4000,constMo:14,valueMult:3.5,pfRatio:70,pfRate:3.8,newRent:4500,newDep:15000,holdYrs:7,totalYrs:18},
   };
   const p=PRESETS[scen];if(!p)return;
 
   /* 슬라이더 & 뱃지 일괄 업데이트 */
-  const units={priceUp:'%',rentUp:'%',vacancy:'%',rateA:'%',rateB:'%',acqTax:'%',
+  const units={priceUp:'%',rentUp:'%',vacancy:'%',newVacancy:'%',rateA:'%',rateB:'%',acqTax:'%',
     constCost:'만',designCost:'만',constMo:'개월',valueMult:'x',
     pfRatio:'%',pfRate:'%',newRent:'만',newDep:'만',holdYrs:'년',totalYrs:'년'};
   Object.entries(p).forEach(([k,v])=>{
@@ -1020,22 +1052,23 @@ function irrCalcRun(){
   /* [계산기 상태 레이어] 슬라이더 현재 값 수집 */
   const g=id=>parseFloat(document.getElementById(id)?.value||0);
   const S={
-    priceUp  :g('sl_priceUp')/100,
-    rentUp   :g('sl_rentUp')/100,
-    vacancy  :g('sl_vacancy')/100,
-    rateA    :g('sl_rateA')/100,
-    rateB    :g('sl_rateB')/100,
-    acqTax   :g('sl_acqTax')/100,
-    constCost:g('sl_constCost')*10000,      // 만원→원
-    designCost:g('sl_designCost')*10000,
-    constMo  :g('sl_constMo'),
-    valueMult:g('sl_valueMult'),
-    pfRatio  :g('sl_pfRatio')/100,
-    pfRate   :g('sl_pfRate')/100,
-    newRent  :g('sl_newRent')*10000,
-    newDep   :g('sl_newDep')*10000,
-    holdYrs  :g('sl_holdYrs'),
-    totalYrs :g('sl_totalYrs'),
+    priceUp    :g('sl_priceUp')/100,
+    rentUp     :g('sl_rentUp')/100,
+    vacancy    :g('sl_vacancy')/100,       // 임대보유 기간 공실률
+    rateA      :g('sl_rateA')/100,
+    rateB      :g('sl_rateB')/100,
+    acqTax     :g('sl_acqTax')/100,        // 취득세율 — 초기 투자금에 반영됨
+    constCost  :g('sl_constCost')*10000,   // 만원→원
+    designCost :g('sl_designCost')*10000,
+    constMo    :g('sl_constMo'),
+    valueMult  :g('sl_valueMult'),
+    pfRatio    :g('sl_pfRatio')/100,
+    pfRate     :g('sl_pfRate')/100,
+    newRent    :g('sl_newRent')*10000,
+    newDep     :g('sl_newDep')*10000,
+    newVacancy :g('sl_newVacancy')/100||0.10, // 신축 후 공실률 (기본 10%)
+    holdYrs    :g('sl_holdYrs'),
+    totalYrs   :g('sl_totalYrs'),
   };
 
   /* [데이터 레이어] 시트 기본값 참조 (원본 불변) */
@@ -1113,11 +1146,12 @@ function irrCalcRun(){
   /* 단순화: 공사기간을 1개 현금흐름 시점으로 처리 */
   const cfConst=-(equityConst);
 
-  /* 신축 후 임대 연간 현금흐름 */
+  /* 신축 후 임대 연간 현금흐름 — newVacancy(신축 공실률) 별도 반영 */
   const newAnnualInterest=pfLoan*S.pfRate;
   const cfNew=[];
   for(let yr=1;yr<=Math.max(1,Math.round(newLeasYrs));yr++){
-    const rentInc=S.newRent*12*Math.pow(1+S.rentUp,yr-1)*(1-S.vacancy);
+    /* 신축 임대: newRent에 신축 공실률(newVacancy) 적용 */
+    const rentInc=S.newRent*12*Math.pow(1+S.rentUp,yr-1)*(1-S.newVacancy);
     const cf=rentInc-newAnnualInterest;
     cfNew.push(cf);
   }
@@ -1192,8 +1226,9 @@ function irrCalcRun(){
       </div>
       <div class="irr-res-grid">
         ${resRow('총 자기자본 투자',fmtBig(totalInvest)+'원','red')}
-        ${resRow('매입 자기자본',fmtBig(equity)+'원','red')}
-        ${resRow('신축 자기자본',fmtBig(equityConst)+'원','red')}
+        ${resRow('└ 매입 자기자본',fmtBig(equity)+'원','red')}
+        ${resRow('└ 취득세',fmtBig(acqTaxAmt)+'원 ('+((S.acqTax*100).toFixed(1))+'%)','yellow')}
+        ${resRow('└ 신축 자기자본',fmtBig(equityConst)+'원','red')}
         ${resRow('신축 PF 대출',fmtBig(pfLoan)+'원','blue')}
         ${resRow('예상 종료가치',fmtBig(exitVal)+'원','green')}
         ${resRow('누적 임대수익',fmtBig(Math.max(0,cumRent))+'원','green')}
@@ -1206,7 +1241,9 @@ function irrCalcRun(){
         <div class="irr-assum-tags">
           <span>시세상승 ${(S.priceUp*100).toFixed(1)}%/년</span>
           <span>임대인상 ${(S.rentUp*100).toFixed(1)}%/년</span>
-          <span>공실률 ${(S.vacancy*100).toFixed(0)}%</span>
+          <span>임대보유 공실 ${(S.vacancy*100).toFixed(0)}%</span>
+          <span>신축 후 공실 ${(S.newVacancy*100).toFixed(0)}%</span>
+          <span>취득세 ${(S.acqTax*100).toFixed(1)}%</span>
           <span>평균금리 ${(avgRate*100).toFixed(1)}%</span>
           <span>시공비 ${(S.constCost/10000).toFixed(0)}만/㎡</span>
           <span>가치배수 ${S.valueMult.toFixed(1)}x</span>
