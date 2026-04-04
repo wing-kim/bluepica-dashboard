@@ -70,15 +70,27 @@ header{display:flex;align-items:center;justify-content:space-between;
   border-radius:var(--r2);padding:10px 14px;
   font-size:11px;color:var(--t3);margin-bottom:20px}
 
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px;margin-bottom:22px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:16px}
 .kpi{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
-  padding:18px 20px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
-.kpi:hover{border-color:rgba(79,124,255,.4);transform:translateY(-2px)}
-.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:#4F7CFF}
-.kpi.b::after,.kpi.g::after,.kpi.y::after,.kpi.p::after,.kpi.r::after{background:#4F7CFF}
-.kpi-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px}
-.kpi-val{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--t1);letter-spacing:-.5px}
-.kpi-sub{font-size:10.5px;color:var(--t4);margin-top:5px;font-weight:400}
+  padding:9px 14px;position:relative;overflow:hidden;transition:border-color .2s,transform .18s}
+.kpi:hover{transform:translateY(-2px)}
+/* 상단 컬러 바: 클래스별 단색 구분 — 그라데이션/형광 없음 */
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.b::after{background:#4F7CFF}   /* 블루 */
+.kpi.g::after{background:#22c98a}   /* 그린 */
+.kpi.y::after{background:#e8a020}   /* 앰버 */
+.kpi.p::after{background:#8b5cf6}   /* 퍼플 */
+.kpi.r::after{background:#e84040}   /* 레드 */
+.kpi.o::after{background:#d97706}   /* 오렌지 */
+/* hover시 테두리는 해당 색조 */
+.kpi.b:hover{border-color:rgba(79,124,255,.35)}
+.kpi.g:hover{border-color:rgba(34,201,138,.35)}
+.kpi.y:hover{border-color:rgba(232,160,32,.35)}
+.kpi.p:hover{border-color:rgba(139,92,246,.35)}
+.kpi.r:hover{border-color:rgba(232,64,64,.35)}
+.kpi-lbl{font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+.kpi-val{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--t1);letter-spacing:-.3px;line-height:1.1}
+.kpi-sub{font-size:9.5px;color:var(--t4);margin-top:4px;font-weight:400}
 
 .card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
 .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
@@ -165,10 +177,28 @@ td:first-child{color:var(--t1);font-weight:500}
   transition:width .8s cubic-bezier(.4,0,.2,1)}
 .g-dur{width:72px;flex-shrink:0;text-align:right;padding-left:10px;
   font-family:var(--mono);font-size:11px;color:var(--t3);white-space:nowrap}
-/* 투자 보고용 블루-슬레이트 팔레트 */
-.gc0{background:#4F7CFF}.gc1{background:#3a6ee8}.gc2{background:#2d5fd4}
-.gc3{background:#5a88ff}.gc4{background:#3a6ee8}.gc5{background:#4F7CFF}
-.gc6{background:#2d5fd4}.gc7{background:#5a88ff}.gc8{background:#3a6ee8}
+/* 단계별 구별 색상 — 절제된 톤, 형광/그라데이션 없음 */
+.gc0{background:#4F7CFF}  /* 블루 */
+.gc1{background:#22c98a}  /* 에메랄드 */
+.gc2{background:#e8a020}  /* 앰버 */
+.gc3{background:#8b5cf6}  /* 퍼플 */
+.gc4{background:#e84040}  /* 레드 */
+.gc5{background:#0ea5e9}  /* 스카이 */
+.gc6{background:#d97706}  /* 오렌지 */
+.gc7{background:#10b981}  /* 틸 */
+.gc8{background:#6366f1}  /* 인디고 */
+
+/* ═══════════════════════════════════════════════════
+   TIMELINE 툴팁 — 마우스 호버 날짜 표시
+═══════════════════════════════════════════════════ */
+.tl-tooltip{position:fixed;pointer-events:none;z-index:9999;
+  background:rgba(8,9,13,.95);border:1px solid #2a3050;
+  border-radius:5px;padding:5px 10px;
+  font-family:var(--mono);font-size:11px;color:#eef0f8;
+  white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.5);
+  transition:opacity .1s;opacity:0;letter-spacing:.3px}
+.tl-tooltip.show{opacity:1}
+.g-bar-area{cursor:crosshair}
 
 /* ═══════════════════════════════════════════════════
    IRR
@@ -664,9 +694,9 @@ function renderTimeline(rows){
     <div class="notice">📡 구글 시트 실시간 연동 · 프로젝트 타임라인</div>
     <div class="kpi-row">
       <div class="kpi b"><div class="kpi-lbl">총 단계</div><div class="kpi-val">${data.length}</div><div class="kpi-sub">프로젝트 항목</div></div>
-      <div class="kpi b"><div class="kpi-lbl">총 소요 기간</div><div class="kpi-val">${totalM}개월</div><div class="kpi-sub">예상 전체 기간</div></div>
-      <div class="kpi b"><div class="kpi-lbl">타임라인 범위</div><div class="kpi-val">${YEAR_START}–${YEAR_END}</div><div class="kpi-sub">5개년 계획</div></div>
-      <div class="kpi b"><div class="kpi-lbl">착공 예정</div><div class="kpi-val">2029</div><div class="kpi-sub">공사 시작 연도</div></div>
+      <div class="kpi g"><div class="kpi-lbl">총 소요 기간</div><div class="kpi-val">${totalM}개월</div><div class="kpi-sub">예상 전체 기간</div></div>
+      <div class="kpi y"><div class="kpi-lbl">타임라인 범위</div><div class="kpi-val">${YEAR_START}–${YEAR_END}</div><div class="kpi-sub">5개년 계획</div></div>
+      <div class="kpi p"><div class="kpi-lbl">착공 예정</div><div class="kpi-val">2029</div><div class="kpi-sub">공사 시작 연도</div></div>
     </div>
     <div class="card">
       <div class="card-head">
@@ -686,6 +716,54 @@ function renderTimeline(rows){
       setTimeout(()=>{el.style.width=el.dataset.w+'%';},60);
     });
   });
+
+  /* ── [UI 전용] 타임라인 바 마우스 호버 날짜 툴팁 ──────────────
+     ★ 데이터 로직(YEAR_START, TOTAL_MONTHS 등) 읽기 전용 참조
+     ★ 날짜 계산: 마우스 X 위치 비율 → 연도/월 변환
+  ─────────────────────────────────────────────────────────── */
+  (()=>{
+    /* 툴팁 엘리먼트 (전역 1개, 재사용) */
+    let tip=document.getElementById('tl-tip-global');
+    if(!tip){
+      tip=document.createElement('div');
+      tip.id='tl-tip-global';
+      tip.className='tl-tooltip';
+      document.body.appendChild(tip);
+    }
+
+    /* 바 영역에서 비율 → 날짜 문자열 */
+    function pctToDate(pct){
+      const totalMonths=TOTAL_MONTHS;
+      const mOff=Math.round(pct/100*totalMonths);
+      const y=YEAR_START+Math.floor(mOff/12);
+      const m=(mOff%12)+1;
+      return y+'년 '+m+'월';
+    }
+
+    sec.querySelectorAll('.g-bar-area').forEach((area,rowIdx)=>{
+      const item=items[rowIdx];
+
+      area.addEventListener('mousemove',e=>{
+        const rect=area.getBoundingClientRect();
+        const pct=Math.max(0,Math.min(100,(e.clientX-rect.left)/rect.width*100));
+        const dateStr=pctToDate(pct);
+
+        /* 항목 기간 정보도 같이 표시 */
+        const periodInfo=item&&item.periodTxt?` (${item.periodTxt})`:'';
+        tip.textContent=dateStr+periodInfo;
+        tip.classList.add('show');
+        tip.style.left=(e.clientX+14)+'px';
+        tip.style.top =(e.clientY-32)+'px';
+      });
+
+      area.addEventListener('mouseleave',()=>{
+        tip.classList.remove('show');
+      });
+    });
+
+    /* 스크롤 시 툴팁 숨김 */
+    window.addEventListener('scroll',()=>tip.classList.remove('show'),{passive:true});
+  })();
 }
 
 /* ════════════════════════════════════════════════════════════
