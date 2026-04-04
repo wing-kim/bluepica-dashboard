@@ -139,25 +139,32 @@ td:first-child{color:var(--t1);font-weight:500}
   font-family:var(--mono);font-size:8px;color:var(--blue);
   background:rgba(8,9,13,.95);padding:1px 5px;border-radius:3px;
   white-space:nowrap;letter-spacing:.5px}
-.g-row{display:flex;align-items:center;padding:11px 0;
-  border-bottom:1px solid rgba(34,38,54,.5);transition:background .12s}
+.g-row{display:flex;align-items:center;padding:10px 0;
+  border-bottom:1px solid rgba(34,38,54,.5);transition:background .12s;min-height:44px}
 .g-row:last-child{border-bottom:none}
 .g-row:hover{background:rgba(59,127,255,.03)}
-.g-info{width:220px;flex-shrink:0;padding-right:16px}
-.g-name{font-size:13px;font-weight:500;color:var(--t1);line-height:1.4}
-.g-period-txt{font-family:var(--mono);font-size:10px;color:var(--t3);margin-top:3px}
-.g-bar-area{flex:1;position:relative;height:36px;display:flex;align-items:center}
+/* [수정4] 항목명 영역 확장 — 긴 이름 한 줄 유지 */
+.g-info{width:260px;flex-shrink:0;padding-right:14px;min-width:0}
+.g-name{font-size:12.5px;font-weight:500;color:var(--t1);line-height:1.35;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  letter-spacing:-.01em}
+.g-name[title]{cursor:default}
+.g-period-txt{font-family:var(--mono);font-size:9.5px;color:var(--t3);margin-top:2px;
+  white-space:nowrap}
+/* [수정1] 바 영역 높이 유지 (track 두께로 제어) */
+.g-bar-area{flex:1;position:relative;height:38px;display:flex;align-items:center}
 .g-vline{position:absolute;top:0;bottom:0;width:1px;
-  background:rgba(42,48,80,.35);pointer-events:none}
+  background:rgba(42,48,80,.32);pointer-events:none}
 .g-now-line{position:absolute;top:0;bottom:0;width:2px;
-  background:rgba(59,127,255,.22);z-index:4;pointer-events:none;border-radius:1px}
+  background:rgba(59,127,255,.2);z-index:4;pointer-events:none;border-radius:1px}
+/* [수정1] track 높이 14→16px (+14%) — 둔탁하지 않게 */
 .g-track{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
-  height:14px;background:rgba(20,24,38,.95);border-radius:3px;
-  border:1px solid rgba(42,48,80,.55)}
-.g-fill{height:100%;border-radius:3px;position:absolute;
+  height:16px;background:rgba(18,22,36,.95);border-radius:4px;
+  border:1px solid rgba(42,48,80,.5)}
+.g-fill{height:100%;border-radius:4px;position:absolute;
   transition:width .8s cubic-bezier(.4,0,.2,1)}
-.g-dur{width:76px;flex-shrink:0;text-align:right;padding-left:10px;
-  font-family:var(--mono);font-size:11.5px;color:var(--t2)}
+.g-dur{width:72px;flex-shrink:0;text-align:right;padding-left:10px;
+  font-family:var(--mono);font-size:11px;color:var(--t3);white-space:nowrap}
 /* 투자 보고용 블루-슬레이트 팔레트 */
 .gc0{background:#4F7CFF}.gc1{background:#3a6ee8}.gc2{background:#2d5fd4}
 .gc3{background:#5a88ff}.gc4{background:#3a6ee8}.gc5{background:#4F7CFF}
@@ -641,7 +648,7 @@ function renderTimeline(rows){
   // Gantt rows
   const gRows=items.map(it=>`<div class="g-row">
     <div class="g-info">
-      <div class="g-name">${it.name}</div>
+      <div class="g-name" title="${it.name}">${it.name}</div>
       ${it.periodTxt?`<div class="g-period-txt">${it.periodTxt}</div>`:''}
     </div>
     <div class="g-bar-area">
@@ -657,9 +664,9 @@ function renderTimeline(rows){
     <div class="notice">📡 구글 시트 실시간 연동 · 프로젝트 타임라인</div>
     <div class="kpi-row">
       <div class="kpi b"><div class="kpi-lbl">총 단계</div><div class="kpi-val">${data.length}</div><div class="kpi-sub">프로젝트 항목</div></div>
-      <div class="kpi g"><div class="kpi-lbl">총 소요 기간</div><div class="kpi-val">${totalM}개월</div><div class="kpi-sub">예상 전체 기간</div></div>
-      <div class="kpi y"><div class="kpi-lbl">타임라인 범위</div><div class="kpi-val">${YEAR_START}–${YEAR_END}</div><div class="kpi-sub">5개년 계획</div></div>
-      <div class="kpi p"><div class="kpi-lbl">착공 예정</div><div class="kpi-val">2029</div><div class="kpi-sub">공사 시작 연도</div></div>
+      <div class="kpi b"><div class="kpi-lbl">총 소요 기간</div><div class="kpi-val">${totalM}개월</div><div class="kpi-sub">예상 전체 기간</div></div>
+      <div class="kpi b"><div class="kpi-lbl">타임라인 범위</div><div class="kpi-val">${YEAR_START}–${YEAR_END}</div><div class="kpi-sub">5개년 계획</div></div>
+      <div class="kpi b"><div class="kpi-lbl">착공 예정</div><div class="kpi-val">2029</div><div class="kpi-sub">공사 시작 연도</div></div>
     </div>
     <div class="card">
       <div class="card-head">
