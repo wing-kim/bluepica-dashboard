@@ -233,64 +233,78 @@ td:first-child{color:var(--t1);font-weight:500}
 .irr-row-item:last-child{border-bottom:none}
 
 /* ═══════════════════════════════════════════════════
-   LEASE — 표 기반 레이아웃 (건물별 그룹화)
+   LEASE — 슬림 레이아웃 (건물별 그룹화)
+   UI 슬림화 + 색상 강화 / 데이터 로직 무수정
 ═══════════════════════════════════════════════════ */
-.ls-section{margin-bottom:28px}
-.ls-group-head{display:flex;align-items:center;gap:12px;padding:12px 18px;
+.ls-section{margin-bottom:18px}
+
+/* 섹션 헤더 — 패딩 축소 */
+.ls-group-head{display:flex;align-items:center;gap:10px;padding:9px 16px;
   background:var(--s2);border:1px solid var(--border);
   border-radius:var(--r) var(--r) 0 0;border-bottom:none}
-.ls-group-bar{width:3px;height:18px;border-radius:2px;flex-shrink:0}
-.ls-group-title{font-size:13px;font-weight:600;color:var(--t1)}
-.ls-group-meta{font-size:11px;color:var(--t3);margin-left:4px}
-.ls-group-sum{margin-left:auto;display:flex;gap:16px;align-items:center}
-.ls-sum-item{font-size:11px;color:var(--t3)}
-.ls-sum-item strong{font-family:var(--mono);font-size:12px;font-weight:500}
+.ls-group-bar{width:3px;height:16px;border-radius:2px;flex-shrink:0;background:#4F7CFF}
+.ls-group-title{font-size:12.5px;font-weight:600;color:var(--t1)}
+.ls-group-meta{font-size:10.5px;color:var(--t3);margin-left:2px}
+.ls-group-sum{margin-left:auto;display:flex;gap:14px;align-items:center}
+.ls-sum-item{font-size:10.5px;color:var(--t3)}
+.ls-sum-item strong{font-family:var(--mono);font-size:11.5px;font-weight:600}
 .ls-sum-item strong.green{color:var(--green)}
 .ls-sum-item strong.blue{color:var(--blue)}
 .ls-sum-item strong.purple{color:var(--purple)}
+
+/* 테이블 래퍼 */
 .ls-table-wrap{border:1px solid var(--border);border-top:none;
   border-radius:0 0 var(--r) var(--r);overflow:hidden}
-.ls-table{width:100%;border-collapse:collapse;font-size:12.5px}
-.ls-table thead tr{background:var(--s2);border-bottom:2px solid var(--border2)}
-.ls-table th{padding:9px 14px;text-align:left;font-size:10px;font-weight:600;
-  color:var(--t3);text-transform:uppercase;letter-spacing:.9px;white-space:nowrap}
+
+/* 테이블 — row 높이 축소, 정보 밀도 증가 */
+.ls-table{width:100%;border-collapse:collapse;font-size:12px}
+.ls-table thead tr{background:var(--s2);border-bottom:1px solid var(--border2)}
+.ls-table th{padding:7px 12px;text-align:left;font-size:9.5px;font-weight:600;
+  color:var(--t3);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap}
 .ls-table th.r{text-align:right}
-.ls-table td{padding:11px 14px;border-bottom:1px solid rgba(34,38,54,.55);
+/* td 패딩 축소 — 정보 밀도 핵심 */
+.ls-table td{padding:7px 12px;border-bottom:1px solid rgba(34,38,54,.45);
   color:var(--t2);white-space:nowrap;vertical-align:middle}
 .ls-table tbody tr:last-child td{border-bottom:none}
-.ls-table tbody tr:hover td{background:rgba(59,127,255,.035);color:var(--t1)}
-.ls-table tr.sum-row td{background:rgba(26,31,46,.7);border-top:1px solid var(--border2);
-  font-weight:600;color:var(--t1)}
+.ls-table tbody tr:hover td{background:rgba(59,127,255,.03);color:var(--t1)}
+.ls-table tr.sum-row td{background:rgba(22,26,40,.8);border-top:1px solid var(--border2);
+  font-weight:600;color:var(--t1);padding:6px 12px}
 .ls-table td.r{text-align:right;font-family:var(--mono)}
-.ls-table td.name{color:var(--t1);font-weight:500;font-size:13px}
-.ls-table td.floor{color:var(--t2);font-size:12px}
-.exp-badge{display:inline-block;padding:2px 8px;border-radius:4px;
-  font-size:10.5px;font-weight:600;letter-spacing:.3px;white-space:nowrap;border:1px solid}
-.exp-ok   {background:rgba(0,184,148,.09);color:#00b894;border-color:rgba(0,184,148,.2)}
-.exp-warn {background:rgba(245,188,48,.09);color:#c49a00;border-color:rgba(245,188,48,.2)}
-.exp-near {background:rgba(240,112,48,.09);color:#e05a00;border-color:rgba(240,112,48,.2)}
-.exp-done {background:rgba(180,60,60,.09);color:#c05050;border-color:rgba(180,60,60,.2)}
-.exp-none {background:rgba(74,82,112,.09);color:var(--t3);border-color:rgba(74,82,112,.2)}
-.amt-green{color:var(--green)!important}.amt-blue{color:var(--blue)!important}
-.amt-purple{color:var(--purple)!important}.amt-muted{color:var(--t4)!important}
-.amt-total{color:var(--t1)!important;font-weight:600}
+.ls-table td.name{color:var(--t1);font-weight:500;font-size:12.5px}
+.ls-table td.floor{color:var(--t2);font-size:11.5px}
 
-/* ═══ LEASE 요약 행 ═══════════════════════════════════════ */
+/* 만료 배지 — 컴팩트 */
+.exp-badge{display:inline-block;padding:1px 7px;border-radius:3px;
+  font-size:10px;font-weight:600;letter-spacing:.2px;white-space:nowrap;border:1px solid}
+.exp-ok  {background:rgba(0,184,148,.08);color:#00b894;border-color:rgba(0,184,148,.18)}
+.exp-warn{background:rgba(245,188,48,.08);color:#c49a00;border-color:rgba(245,188,48,.18)}
+.exp-near{background:rgba(240,112,48,.08);color:#e05a00;border-color:rgba(240,112,48,.18)}
+.exp-done{background:rgba(180,60,60,.08);color:#c05050;border-color:rgba(180,60,60,.18)}
+.exp-none{background:rgba(74,82,112,.07);color:var(--t3);border-color:rgba(74,82,112,.18)}
+
+/* 금액 색상 */
+.amt-green {color:var(--green)!important}
+.amt-blue  {color:var(--blue)!important}
+.amt-purple{color:var(--purple)!important}
+.amt-muted {color:var(--t4)!important}
+.amt-total {color:var(--t1)!important;font-weight:600}
+
+/* ═══ LEASE 요약 바 — 슬림화 ═════════════════════════════ */
 .ls-summary-row{display:flex;flex-wrap:wrap;gap:0;
   border:1px solid var(--border);border-top:none;border-bottom:none;
   background:var(--s2)}
-.ls-summary-item{display:flex;flex-direction:column;gap:4px;
-  padding:12px 20px;border-right:1px solid var(--border);min-width:120px;flex:1}
+/* 패딩 축소: 12px→8px, 폰트 축소 */
+.ls-summary-item{display:flex;flex-direction:column;gap:3px;
+  padding:8px 16px;border-right:1px solid var(--border);min-width:100px;flex:1}
 .ls-summary-item:last-child{border-right:none}
 .ls-si-total{background:rgba(79,124,255,.05);border-left:2px solid #4F7CFF}
-.ls-si-lbl{font-size:10px;color:var(--t4);text-transform:uppercase;letter-spacing:.8px}
-.ls-si-val{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--t2)}
-.ls-si-val.green{color:var(--green)}
-.ls-si-val.blue{color:var(--blue)}
+.ls-si-lbl{font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:.8px}
+/* 값 폰트 축소: 15px→13px */
+.ls-si-val{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--t2)}
+.ls-si-val.green {color:var(--green)}
+.ls-si-val.blue  {color:var(--blue)}
 .ls-si-val.purple{color:var(--purple)}
-.ls-si-val.white{color:var(--t1)}
-/* 그룹 헤더 bar 단일화 */
-.ls-group-bar{width:3px;height:18px;border-radius:2px;flex-shrink:0;background:#4F7CFF!important}
+.ls-si-val.white {color:var(--t1)}
 
 /* ═══════════════════════════════════════════════════
    PERSONAL COST — Cash Flow 분석
@@ -1683,10 +1697,10 @@ function renderLease(rows){
     <div class="notice">📡 구글 시트 실시간 연동 · 임대차계약현황</div>
     <div class="kpi-row">
       <div class="kpi b"><div class="kpi-lbl">총 계약</div><div class="kpi-val">${data.length}</div><div class="kpi-sub">유효 계약 건수</div></div>
-      ${aC?`<div class="kpi b"><div class="kpi-lbl">계약 유효</div><div class="kpi-val">${aC}</div><div class="kpi-sub">진행중</div></div>`:''}
-      ${eC?`<div class="kpi b"><div class="kpi-lbl">만료·종료</div><div class="kpi-val">${eC}</div><div class="kpi-sub">종료</div></div>`:''}
-      ${wC?`<div class="kpi b"><div class="kpi-lbl">주의</div><div class="kpi-val">${wC}</div><div class="kpi-sub">곧 만료</div></div>`:''}
-      ${totalRent?`<div class="kpi b"><div class="kpi-lbl">월임대료 합계</div><div class="kpi-val">${fmtBig(totalRent)}원</div><div class="kpi-sub">전체 건물</div></div>`:''}
+      ${aC?`<div class="kpi g"><div class="kpi-lbl">계약 유효</div><div class="kpi-val" style="color:var(--green)">${aC}</div><div class="kpi-sub">진행중</div></div>`:''}
+      ${eC?`<div class="kpi r"><div class="kpi-lbl">만료·종료</div><div class="kpi-val" style="color:var(--red)">${eC}</div><div class="kpi-sub">종료</div></div>`:''}
+      ${wC?`<div class="kpi y"><div class="kpi-lbl">주의</div><div class="kpi-val" style="color:var(--yellow)">${wC}</div><div class="kpi-sub">곧 만료</div></div>`:''}
+      ${totalRent?`<div class="kpi p"><div class="kpi-lbl">월임대료 합계</div><div class="kpi-val" style="color:var(--purple)">${fmtBig(totalRent)}원</div><div class="kpi-sub">전체 건물</div></div>`:''}
       ${totalLrent?`<div class="kpi b"><div class="kpi-lbl">토지임대료</div><div class="kpi-val">${fmtBig(totalLrent)}원</div><div class="kpi-sub">월 기준</div></div>`:''}
     </div>
     ${sections||`<div class="empty"><div class="empty-i">📭</div>임차인 데이터가 없습니다</div>`}`;
