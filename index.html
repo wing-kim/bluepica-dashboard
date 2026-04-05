@@ -2376,14 +2376,21 @@ function renderCorp(rows){
   function sv(r,i){return i>=0?(r[i]||''):'';} 
   function av(r,i){return i>=0?parseAmt(r[i]):0;}
 
-  /* 금액 자동 탐색 보완 */
+  /* 금액 자동 탐색 — amtIdx/totalIdx 우선, 없으면 0 반환
+     ★ 날짜 셀(YYYYMMDD 형태 8자리 숫자) 오인 방지
+     ★ startIdx/endIdx 열은 절대 금액으로 사용하지 않음 */
+  const DATE_LIKE=/^\d{8}$|^\d{4}[.\-\/]\d{2}/; /* YYYYMMDD 또는 날짜 패턴 */
   function getBestAmt(r){
     if(amtIdx>=0){const v=av(r,amtIdx);if(v)return v;}
     if(totalIdx>=0){const v=av(r,totalIdx);if(v)return v;}
+    /* amtIdx/totalIdx 모두 없을 때만 fallback — 날짜·비고 열 제외 */
+    const skipIdx=new Set([catIdx,itemIdx,startIdx,endIdx,periodIdx,methodIdx,stageIdx,noteIdx].filter(i=>i>=0));
     for(let i=0;i<r.length;i++){
-      if([catIdx,itemIdx,startIdx,endIdx,periodIdx,methodIdx,stageIdx,noteIdx].includes(i))continue;
-      const v=parseAmt(r[i]);
-      if(v>1000)return v;
+      if(skipIdx.has(i))continue;
+      const raw=String(r[i]||'').trim();
+      if(!raw||DATE_LIKE.test(raw))continue; /* 날짜형 스킵 */
+      const v=parseAmt(raw);
+      if(v>=1000&&v<1e13)return v; /* 1,000원 이상 10조 미만 */
     }
     return 0;
   }
@@ -2420,34 +2427,42 @@ function renderCorp(rows){
     return'monthly'; /* 기본값: 매월 */
   }
 
-  /* ══ [기간(개월)] ══════════════════════════════════════════ */
+  /* ══ [기간(개월)] ══════════════════════════════════════════
+     ★ periodIdx 명시 → 시작/종료 계산 → 없으면 1개월
+     ★ 시작일만 있고 종료일 없으면 1개월 (임의 추정 금지)
+  ═════════════════════════════════════════════════════════ */
   function getPeriod(r){
+    /* 1순위: 기간 컬럼 명시값 */
     if(periodIdx>=0){
       const p=parseInt(String(sv(r,periodIdx)).replace(/[^0-9]/g,''));
       if(!isNaN(p)&&p>0)return p;
     }
+    /* 2순위: 시작+종료 모두 있을 때만 계산 */
     if(startIdx>=0&&endIdx>=0){
       const s=sv(r,startIdx).trim(),e=sv(r,endIdx).trim();
-      const ms=s.match(/(\d{4})[.\-\/년\s]*(\d{1,2})/);
-      const me=e.match(/(\d{4})[.\-\/년\s]*(\d{1,2})/);
+      const ms=s.match(/(\d{4})[.\-\/](\d{1,2})/);
+      const me=e.match(/(\d{4})[.\-\/](\d{1,2})/);
       if(ms&&me){
         const diff=(parseInt(me[1])-parseInt(ms[1]))*12+(parseInt(me[2])-parseInt(ms[2]));
-        if(diff>0)return diff+1;
+        if(diff>=0)return diff+1;
       }
     }
-    if(startIdx>=0){
-      const s=sv(r,startIdx).trim();
-      const ms=s.match(/(\d{4})[.\-\/년\s]*(\d{1,2})/);
-      if(ms)return 12-parseInt(ms[2])+1;
-    }
+    /* 시작만 있거나 없으면 → 1개월로 처리 (임의 추정 금지) */
     return 1;
   }
 
-  /* ══ [총액] ════════════════════════════════════════════════ */
+  /* ══ [총액] ════════════════════════════════════════════════
+     ★ totalIdx가 있으면 그 값만 사용
+     ★ 없으면 월금액 × 기간 — 단 기간이 1이면 월금액 그대로
+     ★ 합계가 10조 초과하면 0 반환 (파싱 오류 방어)
+  ═════════════════════════════════════════════════════════ */
   function getTotal(r){
-    if(totalIdx>=0){const t=av(r,totalIdx);if(t)return t;}
-    const m=getBestAmt(r),p=getPeriod(r);
-    return m&&p?m*p:m;
+    if(totalIdx>=0){const t=av(r,totalIdx);if(t&&t<1e13)return t;}
+    const mv=getBestAmt(r);
+    if(!mv)return 0;
+    const p=getPeriod(r);
+    const result=mv*p;
+    return result<1e13?result:mv; /* 10조 초과 → 월금액만 반환 */
   }
 
   /* ══ [시작/종료 파싱] ══════════════════════════════════════ */
