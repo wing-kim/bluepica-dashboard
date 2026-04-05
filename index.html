@@ -1939,83 +1939,121 @@ function renderPersonal(rows){
   const expenseItems=blockToItems(expenseBlock, '지출');
   const allItems=[...incomeItems,...expenseItems];
 
-  /* ══ 총합 계산 ══ */
+  /* ══ 총합 계산 (항목 원본값 그대로) ══════════════════════ */
   const totalIncome =incomeItems .reduce((a,o)=>a+o.amount,0);
   const totalExpense=expenseItems.reduce((a,o)=>a+o.amount,0);
   const netCF=totalIncome-totalExpense;
 
-  /* ── 기간 파싱: "YYYY-MM~YYYY-MM" 또는 "YYYY.MM ~ YYYY.MM" ── */
-  function parsePeriodStr(s){
-    /* 시작/종료 추출 */
-    const m=s.match(/(\d{4})[\.\-\/](\d{1,2})[^\d]+(\d{4})[\.\-\/](\d{1,2})/);
+  /* ══ 기간 파싱 → {sy,sm,ey,em} ═══════════════════════════
+     "YYYY-MM-DD ~ YYYY-MM-DD" 형식 우선 처리
+     Day 부분(DD)이 패턴을 오탐하지 않도록 분리 정규식 사용
+  ════════════════════════════════════════════════════════ */
+  function parsePeriod(s){
+    const str=String(s||'');
+    /* YYYY-MM(-DD)? ~ YYYY-MM(-DD)? */
+    const m=str.match(/(\d{4})-(\d{2})-?\d*\s*[~\-\u2013\u2014]\s*(\d{4})-(\d{2})/);
     if(m)return{sy:+m[1],sm:+m[2],ey:+m[3],em:+m[4]};
+    /* YYYY.MM ~ YYYY.MM */
+    const m2=str.match(/(\d{4})[.](\d{1,2})\s*[~\-\u2013\u2014]\s*(\d{4})[.](\d{1,2})/);
+    if(m2)return{sy:+m2[1],sm:+m2[2],ey:+m2[3],em:+m2[4]};
     /* 단일 연월 */
-    const m2=s.match(/(\d{4})[\.\-\/](\d{1,2})/);
-    if(m2)return{sy:+m2[1],sm:+m2[2],ey:+m2[1],em:+m2[2]};
+    const m3=str.match(/(\d{4})[\.\-](\d{1,2})/);
+    if(m3)return{sy:+m3[1],sm:+m3[2],ey:+m3[1],em:+m3[2]};
     return null;
   }
 
-  /* ══ [월별 계산] ═══════════════════════════════════════════ */
-  let minYear=9999,maxYear=0;
-  allItems.forEach(o=>{
-    const p=parsePeriodStr(o.period);
-    if(p){
-      if(p.sy<minYear)minYear=p.sy;
-      if(p.ey>maxYear)maxYear=p.ey;
-    }
+  /* ══ 월별 통합 캐시플로우 생성 ════════════════════════════
+     각 항목의 기간(시작월~종료월)을 월 단위로 펼쳐서
+     매월 수입/지출을 집계
+  ════════════════════════════════════════════════════════ */
+  /* 기간 범위 자동 탐지 */
+  let minY=9999,maxY=0;
+  [...incomeItems,...expenseItems].forEach(o=>{
+    const p=parsePeriod(o.period);
+    if(!p)return;
+    if(p.sy<minY)minY=p.sy;
+    if(p.ey>maxY)maxY=p.ey;
   });
-  if(minYear===9999||maxYear===0){minYear=new Date().getFullYear();maxYear=minYear+4;}
-  maxYear=Math.min(maxYear,minYear+10);
+  if(minY===9999){minY=new Date().getFullYear();maxY=minY+4;}
+  maxY=Math.min(maxY,minY+9); /* 최대 10년 */
 
-  function inMonth(o,y,m){
-    const p=parsePeriodStr(o.period);
-    if(!p)return false;
-    const cur=y*100+m;
-    return cur>=(p.sy*100+p.sm)&&cur<=(p.ey*100+p.em);
+  /* 월별 맵 생성 */
+  const cfMap={};
+  function cfKey(y,m){return `${y}-${String(m).padStart(2,'0')}`;}
+
+  function addMonths(items,field){
+    items.forEach(o=>{
+      const p=parsePeriod(o.period);
+      if(!p||!o.amount)return;
+      /* 시작월~종료월 loop */
+      let cy=p.sy,cm=p.sm;
+      while(cy<p.ey||(cy===p.ey&&cm<=p.em)){
+        if(cy>=minY&&cy<=maxY){
+          const k=cfKey(cy,cm);
+          if(!cfMap[k])cfMap[k]={y:cy,m:cm,inc:0,exp:0};
+          cfMap[k][field]+=o.amount;
+        }
+        cm++;if(cm>12){cm=1;cy++;}
+      }
+    });
   }
+  addMonths(incomeItems,'inc');
+  addMonths(expenseItems,'exp');
 
-  const months=[];
-  for(let y=minYear;y<=maxYear;y++)
-    for(let m=1;m<=12;m++)months.push({y,m});
-
-  let cumInc=0,cumExp=0;
-  const incMonthData=[],expMonthData=[];
-  months.forEach(({y,m})=>{
-    const vi=incomeItems .filter(o=>inMonth(o,y,m)).reduce((a,o)=>a+o.amount,0);
-    const ve=expenseItems.filter(o=>inMonth(o,y,m)).reduce((a,o)=>a+o.amount,0);
-    cumInc+=vi;cumExp+=ve;
-    incMonthData.push({y,m,v:vi,cum:cumInc});
-    expMonthData.push({y,m,v:ve,cum:cumExp});
+  /* 정렬된 월별 배열 */
+  const cfRows=Object.keys(cfMap).sort().map(k=>{
+    const r=cfMap[k];
+    return{y:r.y,m:r.m,inc:r.inc,exp:r.exp,net:r.inc-r.exp};
   });
 
-  /* ══ [KPI] ════════════════════════════════════════════════ */
+  /* 누적 계산 */
+  let cumNet=0;
+  cfRows.forEach(r=>{r.cum=cumNet+=r.net;});
+
+  /* ══ [KPI] 색상 강화 ══════════════════════════════════════
+     총수입→green / 총지출→red / 순현금흐름→blue강조 / 총항목→purple
+  ════════════════════════════════════════════════════════ */
   const kpiHTML=`<div class="kpi-row">
-    <div class="kpi b"><div class="kpi-lbl">총 수입</div>
+    <div class="kpi g">
+      <div class="kpi-lbl">총 수입</div>
       <div class="kpi-val" style="color:var(--green)">${fmtBig(totalIncome)}원</div>
-      <div class="kpi-sub">${incomeItems.length}건</div></div>
-    <div class="kpi b"><div class="kpi-lbl">총 지출</div>
+      <div class="kpi-sub">${incomeItems.length}건 · 월 기준</div>
+    </div>
+    <div class="kpi r">
+      <div class="kpi-lbl">총 지출</div>
       <div class="kpi-val" style="color:var(--red)">${fmtBig(totalExpense)}원</div>
-      <div class="kpi-sub">${expenseItems.length}건</div></div>
-    <div class="kpi b"><div class="kpi-lbl">순 현금흐름</div>
-      <div class="kpi-val" style="color:${netCF>=0?'var(--blue)':'var(--red)'}">${netCF>=0?'+':''}${fmtBig(netCF)}원</div>
-      <div class="kpi-sub">수입 − 지출</div></div>
-    <div class="kpi b"><div class="kpi-lbl">총 항목</div>
-      <div class="kpi-val">${allItems.length}</div>
-      <div class="kpi-sub">수입 ${incomeItems.length} · 지출 ${expenseItems.length}</div></div>
+      <div class="kpi-sub">${expenseItems.length}건 · 월 기준</div>
+    </div>
+    <div class="kpi b" style="border:1.5px solid rgba(59,127,255,.35)">
+      <div class="kpi-lbl">순 현금흐름</div>
+      <div class="kpi-val" style="color:${netCF>=0?'var(--blue)':'var(--red)'};font-size:17px;font-weight:700">
+        ${netCF>=0?'+':''}${fmtBig(netCF)}원
+      </div>
+      <div class="kpi-sub">수입 − 지출</div>
+    </div>
+    <div class="kpi p">
+      <div class="kpi-lbl">총 항목</div>
+      <div class="kpi-val" style="color:var(--purple)">${incomeItems.length+expenseItems.length}</div>
+      <div class="kpi-sub">수입 ${incomeItems.length} · 지출 ${expenseItems.length}</div>
+    </div>
   </div>`;
 
-  /* ══ [요약 테이블] ══════════════════════════════════════════ */
+  /* ══ [요약 테이블] 항목별 월 금액 + 기간 ══════════════════ */
   function summaryRow(o){
     const badge=o.type==='수입'
       ?`<span class="type-badge type-in">수입</span>`
       :`<span class="type-badge type-out">지출</span>`;
     const cls=o.type==='수입'?'inc':'exp';
+    /* 기간 개월 수 계산 */
+    const p=parsePeriod(o.period);
+    const months=p?(p.ey-p.sy)*12+(p.em-p.sm)+1:null;
+    const totalAmt=months?o.amount*months:null;
     return`<tr class="${o.type==='수입'?'income-row':'expense-row'}">
       <td class="label">${o.item}</td>
       <td>${badge}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--t3)">${o.period||'—'}</td>
-      <td class="r">${o.amount?`<span class="${cls}">${fmtBig(o.amount)}원</span>`:`<span class="dim">—</span>`}</td>
-      <td class="r"><span class="${cls}" style="font-weight:600">${o.amount?fmtBig(o.amount)+'원':'—'}</span></td>
+      <td class="r"><span class="${cls}">${fmtBig(o.amount)}원</span></td>
+      <td class="r"><span class="${cls}" style="font-weight:600">${totalAmt?fmtBig(totalAmt)+'원':'—'}</span></td>
     </tr>`;
   }
 
@@ -2023,33 +2061,31 @@ function renderPersonal(rows){
     <div class="cf-section-head">
       <div class="cf-section-bar" style="background:#4F7CFF"></div>
       <div class="cf-section-title">수입 · 지출 요약</div>
-      <div class="cf-section-sub">${allItems.length}건</div>
+      <div class="cf-section-sub">${incomeItems.length+expenseItems.length}건</div>
     </div>
     <div class="cf-table-wrap"><div style="overflow-x:auto">
       <table class="cf-table">
         <thead><tr>
           <th>항목</th><th>구분</th><th>기간</th>
-          <th class="r">월 금액</th><th class="r">총 금액</th>
+          <th class="r">월 금액</th><th class="r">기간 합계</th>
         </tr></thead>
         <tbody>
-          ${incomeItems.length
-            ?`<tr class="yr-group"><td colspan="5">▸ 수입 항목</td></tr>
-              ${incomeItems.map(o=>summaryRow(o)).join('')}
-              <tr class="subtotal-row"><td colspan="4">소계 — 수입</td>
-                <td class="r"><span class="inc">${fmtBig(totalIncome)}원</span></td></tr>`
-            :`<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t4)">
-               수입 항목 없음 — 시트에 "1. 개인 수입 항목" 섹션이 있는지 확인하세요
-             </td></tr>`}
-          ${expenseItems.length
-            ?`<tr class="yr-group"><td colspan="5">▸ 지출 항목</td></tr>
-              ${expenseItems.map(o=>summaryRow(o)).join('')}
-              <tr class="subtotal-row"><td colspan="4">소계 — 지출</td>
-                <td class="r"><span class="exp">${fmtBig(totalExpense)}원</span></td></tr>`
-            :''}
+          ${incomeItems.length?`
+            <tr class="yr-group"><td colspan="5">▸ 수입 항목</td></tr>
+            ${incomeItems.map(o=>summaryRow(o)).join('')}
+            <tr class="subtotal-row"><td colspan="4">소계 — 수입</td>
+              <td class="r"><span class="inc">${fmtBig(totalIncome)}원/월</span></td></tr>`
+          :`<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t4)">수입 항목 없음</td></tr>`}
+          ${expenseItems.length?`
+            <tr class="yr-group"><td colspan="5">▸ 지출 항목</td></tr>
+            ${expenseItems.map(o=>summaryRow(o)).join('')}
+            <tr class="subtotal-row"><td colspan="4">소계 — 지출</td>
+              <td class="r"><span class="exp">${fmtBig(totalExpense)}원/월</span></td></tr>`
+          :''}
           <tr class="net-row">
-            <td colspan="4" style="font-size:13px">순 현금흐름 (수입 − 지출)</td>
+            <td colspan="4" style="font-size:13px">월 순현금흐름 (수입 − 지출)</td>
             <td class="r" style="font-size:14px;font-weight:700;color:${netCF>=0?'var(--blue)':'var(--red)'}">
-              ${netCF>=0?'+':''}${fmtBig(netCF)}원
+              ${netCF>=0?'+':''}${fmtBig(netCF)}원/월
             </td>
           </tr>
         </tbody>
@@ -2057,65 +2093,63 @@ function renderPersonal(rows){
     </div></div>
   </div>`;
 
-  /* ══ [월별 상세 테이블] ═════════════════════════════════════ */
-  function buildMonthTable(mRows,type){
-    const active=mRows.filter(r=>r.v>0);
-    if(!active.length)return`<tr><td colspan="3" style="text-align:center;padding:30px;color:var(--t4)">
-      해당 기간 데이터 없음 — 시트 기간(수입기간/납부기간) 형식을 확인하세요</td></tr>`;
-    const cls=type==='in'?'inc':'exp';
-    let html='',lastY=null,yrSum=0;
-    active.forEach(({y,m,v,cum})=>{
+  /* ══ [통합 캐시플로우 테이블] 연월·수입·지출·순현금흐름·누적 ══ */
+  function buildCFTable(){
+    if(!cfRows.length)return`<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--t4)">
+      기간 데이터 없음 — 수입기간/납부기간 형식: YYYY-MM-DD ~ YYYY-MM-DD</td></tr>`;
+    let html='',lastY=null,yrInc=0,yrExp=0;
+    cfRows.forEach(({y,m,inc,exp,net,cum})=>{
       if(y!==lastY){
-        if(lastY!==null&&yrSum>0)
-          html+=`<tr class="yr-total"><td>${lastY}년 소계</td>
-            <td class="r"><span class="${cls}">${fmtBig(yrSum)}원</span></td>
-            <td class="r"></td></tr>`;
-        html+=`<tr class="yr-group"><td colspan="3">${y}년</td></tr>`;
-        lastY=y;yrSum=0;
+        if(lastY!==null)
+          html+=`<tr class="yr-total">
+            <td>${lastY}년 소계</td>
+            <td class="r"><span class="inc">${fmtBig(yrInc)}원</span></td>
+            <td class="r"><span class="exp">${fmtBig(yrExp)}원</span></td>
+            <td class="r"><span class="${yrInc-yrExp>=0?'neu':'exp'}">${yrInc-yrExp>=0?'+':''}${fmtBig(yrInc-yrExp)}원</span></td>
+            <td></td></tr>`;
+        html+=`<tr class="yr-group"><td colspan="5">${y}년</td></tr>`;
+        lastY=y;yrInc=0;yrExp=0;
       }
-      yrSum+=v;
+      yrInc+=inc;yrExp+=exp;
       html+=`<tr>
         <td class="ym">${y}.${String(m).padStart(2,'0')}</td>
-        <td class="r"><span class="${cls}">${fmtBig(v)}원</span></td>
-        <td class="r"><span class="neu">${fmtBig(cum)}원</span></td>
+        <td class="r">${inc>0?`<span class="inc">${fmtBig(inc)}원</span>`:`<span class="dim">—</span>`}</td>
+        <td class="r">${exp>0?`<span class="exp">${fmtBig(exp)}원</span>`:`<span class="dim">—</span>`}</td>
+        <td class="r"><span class="${net>=0?'neu':'exp'}">${net>=0?'+':''}${fmtBig(net)}원</span></td>
+        <td class="r"><span class="${cum>=0?'':'exp'}" style="font-size:11px">${cum>=0?'+':''}${fmtBig(cum)}원</span></td>
       </tr>`;
     });
-    if(lastY&&yrSum>0)
-      html+=`<tr class="yr-total"><td>${lastY}년 소계</td>
-        <td class="r"><span class="${cls}">${fmtBig(yrSum)}원</span></td>
-        <td class="r"></td></tr>`;
+    if(lastY)
+      html+=`<tr class="yr-total">
+        <td>${lastY}년 소계</td>
+        <td class="r"><span class="inc">${fmtBig(yrInc)}원</span></td>
+        <td class="r"><span class="exp">${fmtBig(yrExp)}원</span></td>
+        <td class="r"><span class="${yrInc-yrExp>=0?'neu':'exp'}">${yrInc-yrExp>=0?'+':''}${fmtBig(yrInc-yrExp)}원</span></td>
+        <td></td></tr>`;
     return html;
   }
 
-  const incMonthHTML=`<div class="cf-section">
+  const cfHTML=`<div class="cf-section">
     <div class="cf-section-head">
-      <div class="cf-section-bar" style="background:var(--green)"></div>
-      <div class="cf-section-title">수입 월별 상세</div>
-      <div class="cf-section-sub">총 ${fmtBig(cumInc)}원</div>
+      <div class="cf-section-bar" style="background:var(--blue)"></div>
+      <div class="cf-section-title">월별 통합 캐시플로우</div>
+      <div class="cf-section-sub">${cfRows.length}개월</div>
     </div>
     <div class="cf-table-wrap"><div style="overflow-x:auto">
       <table class="cf-table">
-        <thead><tr><th>연월</th><th class="r">월 수입</th><th class="r">누적 수입</th></tr></thead>
-        <tbody>${buildMonthTable(incMonthData,'in')}</tbody>
+        <thead><tr>
+          <th>연월</th>
+          <th class="r" style="color:var(--green)">수입</th>
+          <th class="r" style="color:var(--red)">지출</th>
+          <th class="r" style="color:var(--blue)">순현금흐름</th>
+          <th class="r">누적</th>
+        </tr></thead>
+        <tbody>${buildCFTable()}</tbody>
       </table>
     </div></div>
   </div>`;
 
-  const expMonthHTML=`<div class="cf-section">
-    <div class="cf-section-head">
-      <div class="cf-section-bar" style="background:var(--red)"></div>
-      <div class="cf-section-title">지출 월별 상세</div>
-      <div class="cf-section-sub">총 ${fmtBig(cumExp)}원</div>
-    </div>
-    <div class="cf-table-wrap"><div style="overflow-x:auto">
-      <table class="cf-table">
-        <thead><tr><th>연월</th><th class="r">월 지출</th><th class="r">누적 지출</th></tr></thead>
-        <tbody>${buildMonthTable(expMonthData,'out')}</tbody>
-      </table>
-    </div></div>
-  </div>`;
-
-  /* ══ [원본 데이터] 접기/펼치기 ══ */
+    /* ══ [원본 데이터] 접기/펼치기 ══ */
   CACHE['personal_cfn']=null;
   initTS('personal');TS['personal']={search:'',sortCol:-1,sortAsc:true,page:1};
 
@@ -2135,8 +2169,7 @@ function renderPersonal(rows){
     ${parseNote}
     ${kpiHTML}
     ${summaryHTML}
-    ${incMonthHTML}
-    ${expMonthHTML}
+    ${cfHTML}
     <div class="cf-section" style="margin-bottom:0">
       <div class="cf-section-head" style="cursor:pointer;user-select:none"
         onclick="var b=document.getElementById('personal-raw');b.style.display=b.style.display==='none'?'block':'none';this.querySelector('.raw-toggle').textContent=b.style.display==='none'?'▶ 펼치기':'▼ 접기'">
