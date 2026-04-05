@@ -294,13 +294,12 @@ td:first-child{color:var(--t1);font-weight:500}
   border:1px solid var(--border);border-top:none;border-bottom:none;
   background:var(--s2)}
 /* 패딩 축소: 12px→8px, 폰트 축소 */
-.ls-summary-item{display:flex;flex-direction:column;gap:3px;
-  padding:8px 16px;border-right:1px solid var(--border);min-width:100px;flex:1}
+.ls-summary-item{display:flex;flex-direction:row;align-items:center;gap:8px;
+  padding:5px 14px;border-right:1px solid var(--border);flex:1}
 .ls-summary-item:last-child{border-right:none}
-.ls-si-total{background:rgba(79,124,255,.05);border-left:2px solid #4F7CFF}
-.ls-si-lbl{font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:.8px}
-/* 값 폰트 축소: 15px→13px */
-.ls-si-val{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--t2)}
+.ls-si-total{background:rgba(79,124,255,.04);border-left:2px solid #4F7CFF}
+.ls-si-lbl{font-size:8.5px;color:var(--t4);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap}
+.ls-si-val{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--t2);white-space:nowrap}
 .ls-si-val.green {color:var(--green)}
 .ls-si-val.blue  {color:var(--blue)}
 .ls-si-val.purple{color:var(--purple)}
@@ -1673,6 +1672,9 @@ function renderLease(rows){
   /* ══ [KPI 집계] — 유효 행(data)만 사용, 중복 없음 ═════════ */
   const totalRent =data.reduce((a,r)=>a+amt(r,rentIdx),0);
   const totalLrent=data.reduce((a,r)=>a+amt(r,landRentIdx),0);
+  const totalMgmt =data.reduce((a,r)=>a+amt(r,mgmtIdx),0);
+  const totalDep  =data.reduce((a,r)=>a+amt(r,depositIdx),0);
+  const totalMonth=totalRent+totalMgmt+totalLrent;
   let aC=0,eC=0,wC=0;
   data.forEach(r=>{
     const stTxt=str(r,statusIdx),endTxt=str(r,endIdx);
@@ -1695,12 +1697,14 @@ function renderLease(rows){
 
   sec.innerHTML=`
     <div class="notice">📡 구글 시트 실시간 연동 · 임대차계약현황</div>
-    <div class="kpi-row">
+    <div class="kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(100px,1fr));flex-wrap:nowrap">
       <div class="kpi b"><div class="kpi-lbl">총 계약</div><div class="kpi-val">${data.length}</div><div class="kpi-sub">유효 계약 건수</div></div>
       ${aC?`<div class="kpi g"><div class="kpi-lbl">계약 유효</div><div class="kpi-val" style="color:var(--green)">${aC}</div><div class="kpi-sub">진행중</div></div>`:''}
       ${eC?`<div class="kpi r"><div class="kpi-lbl">만료·종료</div><div class="kpi-val" style="color:var(--red)">${eC}</div><div class="kpi-sub">종료</div></div>`:''}
       ${wC?`<div class="kpi y"><div class="kpi-lbl">주의</div><div class="kpi-val" style="color:var(--yellow)">${wC}</div><div class="kpi-sub">곧 만료</div></div>`:''}
-      ${totalRent?`<div class="kpi p"><div class="kpi-lbl">월임대료 합계</div><div class="kpi-val" style="color:var(--purple)">${fmtBig(totalRent)}원</div><div class="kpi-sub">전체 건물</div></div>`:''}
+      ${totalRent?`<div class="kpi p"><div class="kpi-lbl">월 임대료</div><div class="kpi-val" style="color:var(--purple)">${fmtBig(totalRent)}원</div><div class="kpi-sub">전체 합산</div></div>`:''}
+      ${totalMgmt?`<div class="kpi b"><div class="kpi-lbl">관리비</div><div class="kpi-val">${fmtBig(totalMgmt)}원</div><div class="kpi-sub">월 기준</div></div>`:''}
+      ${totalDep?`<div class="kpi b"><div class="kpi-lbl">보증금</div><div class="kpi-val">${fmtBig(totalDep)}원</div><div class="kpi-sub">전체 합산</div></div>`:''}
       ${totalLrent?`<div class="kpi b"><div class="kpi-lbl">토지임대료</div><div class="kpi-val">${fmtBig(totalLrent)}원</div><div class="kpi-sub">월 기준</div></div>`:''}
     </div>
     ${sections||`<div class="empty"><div class="empty-i">📭</div>임차인 데이터가 없습니다</div>`}`;
