@@ -943,53 +943,43 @@ function renderIRR(rows){
     buildCard('압구정로 8길 3',propB,'B필지','tag-b','#3a6ee8')
   ].filter(Boolean).join('');
 
-  /* ── groups 생성 (irrCalcRun 계산기에 필요) ── */
-  /* 구조B에서 각 필지의 집약 데이터를 계산기가 참조할 수 있도록 pseudo-row 생성 */
-  function makeGroupRow(p){
-    /* 계산기가 사용하는 av(r,idx) 패턴 대신 직접 값 배열을 만들어 전달 */
-    const r=new Array(hdr.length).fill('');
-    if(col112>=0||col8>=0){
-      /* buyPriceIdx 등 계산기 참조용 인덱스는 _irrSheetData에서 설정 */
-    }
-    return r;
-  }
+  /* ── groups + irrSheetData 설정 ─────────────────────────────
+     irrCalcRun 계산기가 두 필지 합산값을 사용할 수 있도록
+     propA + propB를 미리 합산해 _irrSheetData에 직접 저장
+     ★ 행=항목 구조이므로 컬럼 인덱스 대신 직접값 사용
+  ─────────────────────────────────────────────────────────── */
   const groups=[
     {addr:'압구정로 112',  rows:data, _propData:propA, _col:col112},
-    {addr:'압구정로 8길 3',rows:data, _propData:propB, _col:col8}
+    {addr:'압구정로 8길 3',rows:data, _propData:propB, _col:col8  }
   ];
 
-  var CARD_ACCENTS=['#4F7CFF','#3a6ee8'];
-
-  /* ── irrCalcRun을 위한 합산 데이터 노출 ──
-     계산기는 두 필지 합산값을 사용하므로
-     propA + propB 합산을 _irrSheetData에 저장 */
+  const _aNum=(p)=>parseFloat(String(p?.area||'').replace(/[^0-9.]/g,''))||0;
   const _totalBuy    =(propA?.buyP   ||0)+(propB?.buyP   ||0);
   const _totalLoan   =(propA?.loan   ||0)+(propB?.loan   ||0);
   const _totalDep    =(propA?.deposit||0)+(propB?.deposit||0);
   const _totalRent   =(propA?.rent   ||0)+(propB?.rent   ||0);
-  const _totalAreaNum=
-    (parseFloat(String(propA?.area||'').replace(/[^0-9.]/g,''))||0)+
-    (parseFloat(String(propB?.area||'').replace(/[^0-9.]/g,''))||0);
+  const _totalAreaNum=_aNum(propA)+_aNum(propB);
   const _totalLandVal=
     (propA?.landTot||0)+(propB?.landTot||0)||
-    ((propA?.landPr||0)*(parseFloat(String(propA?.area||'').replace(/[^0-9.]/g,''))||0))+
-    ((propB?.landPr||0)*(parseFloat(String(propB?.area||'').replace(/[^0-9.]/g,''))||0));
+    (propA?.landPr||0)*_aNum(propA)+(propB?.landPr||0)*_aNum(propB);
 
-  /* ── irrSheetData 설정 (irrCalcRun 전용) ──
-     구조B에서는 컬럼 인덱스 대신 직접 값을 저장하는 특수 구조 사용 */
+  /* 대출금리: 시트에서 읽어 슬라이더 초기값으로 사용할 수 있는 경우 */
+  const _loanRateA=parseFloat(String(propA?.loanRate||'').replace(/[^0-9.]/g,''))||0;
+  const _loanRateB=parseFloat(String(propB?.loanRate||'').replace(/[^0-9.]/g,''))||0;
+
   window._irrSheetData={
-    groups,hdr,
-    /* 구조B 직접값 (irrCalcRun에서 우선 사용) */
-    _isStructureB:true,
+    groups, hdr,
+    /* ★ 구조B 직접값 — irrCalcRun에서 _isStructureB 확인 후 우선 사용 */
+    _isStructureB : true,
     _totalBuy, _totalLoan, _totalDep, _totalRent, _totalAreaNum, _totalLandVal,
-    /* 구조A fallback 인덱스 (사용 안 됨) */
-    addrIdx:-1,areaIdx:-1,buyPriceIdx:-1,loanIdx:-1,
-    depositIdx:-1,rentIdx:-1,landPrIdx:-1,landTotIdx:-1
+    _loanRateA, _loanRateB,
+    /* 구조A fallback 인덱스 (구조B에서는 사용 안 됨, -1로 초기화) */
+    addrIdx:-1, areaIdx:-1, buyPriceIdx:-1, loanIdx:-1,
+    depositIdx:-1, rentIdx:-1, landPrIdx:-1, landTotIdx:-1
   };
 
-    /* ── [UI 레이어] buildPropertyCard — 이미 위에서 처리됨 ── */
-  /* (아래 calcHTML, _irrSheetData 등 기존 계산기 구조는 그대로 유지) */
-  var CARD_ACCENTS=['#4F7CFF','#3a6ee8']; /* 계산기 슬라이더 초기화에 필요 */
+  /* 계산기 슬라이더용 accent 상수 */
+  const CARD_ACCENTS=['#4F7CFF','#3a6ee8'];
 
   /* ── [계산기 UI] 슬라이더/입력 패널 HTML ── */
   /* 각 입력값은 DOM id로 관리 → 원본 시트 데이터에 일절 영향 없음 */
@@ -1148,37 +1138,23 @@ function renderIRR(rows){
       ${calcHTML}
     </div>`;
 
-  /* ── 계산기 JS state 초기화 & 시트값 주입 ──
-     시트에서 읽은 기본값을 계산기 초기값으로 사용 */
-  // 대출금리가 시트에 있으면 슬라이더 초기값으로 설정
-  if(loanRateIdx>=0&&groups.length){
-    const rA=parseFloat(String(sv(groups[0].rows[0]||[],loanRateIdx)).replace(/[^0-9.]/g,''));
-    const rB=parseFloat(String(sv(groups[1]?.rows[0]||[],loanRateIdx)).replace(/[^0-9.]/g,''));
-    if(!isNaN(rA)&&rA>0){
+  /* ── 계산기 슬라이더 초기값: 시트 대출금리 반영 ──────────────
+     loanRateIdx 변수는 구조B에서 선언되지 않으므로
+     _irrSheetData에 저장해 둔 _loanRateA/B 직접값을 사용
+  ─────────────────────────────────────────────────────────── */
+  const _sd=window._irrSheetData;
+  if(_sd){
+    const rA=_sd._loanRateA||0;
+    const rB=_sd._loanRateB||0;
+    if(rA>0){
       const slA=document.getElementById('sl_rateA');
       if(slA){slA.value=rA;document.getElementById('lbl_rateA').textContent=rA.toFixed(1)+'%';}
     }
-    if(!isNaN(rB)&&rB>0){
+    if(rB>0){
       const slB=document.getElementById('sl_rateB');
       if(slB){slB.value=rB;document.getElementById('lbl_rateB').textContent=rB.toFixed(1)+'%';}
     }
   }
-
-  /* 시트에서 읽은 필지 정보를 계산기가 참조할 수 있도록 저장
-     (window._irrSheetData 는 계산 전용 임시 저장소 — 시트 원본 변경 없음) */
-  /* 구조에 따라 인덱스 정의 — 구조B는 parseStructureA 변수가 없으므로 -1로 초기화 */
-  const _addrIdx    =typeof addrIdx!=='undefined'?addrIdx:-1;
-  const _areaIdx    =typeof areaIdx!=='undefined'?areaIdx:-1;
-  const _buyPriceIdx=typeof buyPriceIdx!=='undefined'?buyPriceIdx:-1;
-  const _loanIdx    =typeof loanIdx!=='undefined'?loanIdx:-1;
-  const _depositIdx =typeof depositIdx!=='undefined'?depositIdx:-1;
-  const _rentIdx    =typeof rentIdx!=='undefined'?rentIdx:-1;
-  const _landPrIdx  =typeof landPrIdx!=='undefined'?landPrIdx:-1;
-  const _landTotIdx =typeof landTotIdx!=='undefined'?landTotIdx:-1;
-  window._irrSheetData={groups,hdr,
-    addrIdx:_addrIdx,areaIdx:_areaIdx,buyPriceIdx:_buyPriceIdx,
-    loanIdx:_loanIdx,depositIdx:_depositIdx,rentIdx:_rentIdx,
-    landPrIdx:_landPrIdx,landTotIdx:_landTotIdx};
 }
 
 /* ════════════════════════════════════════════════════════════
