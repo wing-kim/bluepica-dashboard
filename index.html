@@ -1734,114 +1734,134 @@ function renderPersonal(rows){
        행N+3: 납부기간 | 2026-05~2028-12 | ...
   ═════════════════════════════════════════════════════════════ */
 
-  /* ── 문자열 정규화 ── */
-  function nc(s){return String(s||'').replace(/\s+/g,' ').trim();}
+  /* ════════════════════════════════════════════════════════════
+     [가로형 매트릭스 파서] 핵심 로직
+     ★ 제목 탐지: 행 전체 셀 순회 + 초광범위 정규식
+     ★ 속성명 탐지: 행의 모든 셀에서 검색
+     ★ 병합 셀 forward-fill 적용
+     ★ fetch 연동 구조 무수정
+  ═══════════════════════════════════════════════════════════ */
+
+  /* ── 문자열 정규화: 공백/줄바꿈/NBSP/특수공백 모두 제거 ── */
+  function nc(s){
+    return String(s||'')
+      .replace(/\u00a0|\u3000|\u200b/g,' ')  /* NBSP·전각공백·ZWSP */
+      .replace(/[\r\n\t]+/g,' ')              /* 줄바꿈·탭 */
+      .replace(/\s+/g,' ')                    /* 연속 공백 */
+      .trim();
+  }
   function norm(s){return nc(s).toLowerCase();}
 
-  /* ── 속성명 행 판별 (첫 번째 열 기준) ── */
+  /* ── 행 전체에서 특정 패턴을 가진 셀 찾기 ── */
+  function rowHas(r, pat){
+    return r.some(c=>pat.test(norm(c)));
+  }
+
+  /* ── 디버그: rows 원본 구조 출력 (F12 콘솔에서 확인) ── */
+  console.log('[개인비용 raw rows]', {
+    총행수: rows.length,
+    첫10행: rows.slice(0,10).map((r,i)=>`[${i}] `+r.map(c=>nc(c)).filter(c=>c).join(' | ')),
+    전체행라벨: rows.map((r,i)=>[i, nc(r[0]||''), nc(r[1]||'')])
+  });
+
+  /* ── 제목 행 판별: 행의 모든 셀에서 검색, 극도로 넓은 패턴 ── */
+  function isIncomeSection(r){
+    /* "수입" AND "항목" 이 같은 셀 또는 같은 행에 존재 */
+    const joined=r.map(c=>norm(c)).join(' ');
+    return /수입/.test(joined) && /항목/.test(joined) && !/지출/.test(joined);
+  }
+  function isExpenseSection(r){
+    const joined=r.map(c=>norm(c)).join(' ');
+    return /지출/.test(joined) && /항목/.test(joined);
+  }
+
+  /* ── 속성명 행 판별: 행 전체 셀에서 검색 ── */
   function getLabelType(r){
-    const s=norm(r[0]||'');
-    if(/^항목/.test(s))   return 'item';
-    if(/^금액/.test(s))   return 'amount';
-    if(/기간/.test(s))    return 'period';
+    /* 첫 번째 비어있지 않은 셀의 내용으로 판별 */
+    const firstCell=norm(r.find(c=>nc(c))||'');
+    if(/^항목$|^항\s*목$/.test(firstCell)) return 'item';
+    if(/^금액$|^금\s*액$/.test(firstCell)) return 'amount';
+    if(/수입.*기간|기간.*수입/.test(firstCell)) return 'income_period';
+    if(/납부.*기간|기간.*납부/.test(firstCell)) return 'expense_period';
+    if(/기간/.test(firstCell)) return 'period'; /* 범용 기간 */
     return null;
   }
 
-  /* ── 섹션 구분 규칙 ─────────────────────────────────────────
-     전략A: 시트 제목("1. 개인 수입 항목" 등)으로 구분
-     전략B: 제목이 없으면 "항목" 행이 여러 개인 경우 첫 번째=수입, 두 번째=지출
-     전략C: "수입기간" 행과 "납부기간" 행으로 구분
-     → 세 전략을 순서대로 시도, 가장 먼저 성공한 방식 사용
+  /* ── 섹션 분리: 전략 A→B→C→D 순서 ─────────────────────────
+     A: 제목 행 기반 (행 전체 셀 순회, 초광범위 패턴)
+     B: "수입기간"+"납부기간" 키워드 기반 경계
+     C: "항목" 행 2개 기준 분리
+     D: 전체를 수입으로 fallback
   ─────────────────────────────────────────────────────────── */
-
-  /* 전략A: 제목 행 탐지 (공백·번호 변형 모두 대응) */
-  function isIncomeTitle(r){
-    const s=norm(r[0]||'')+' '+norm(r[1]||'');
-    return /수입.*항목|income/.test(s)&&!/지출|expense/.test(s);
-  }
-  function isExpenseTitle(r){
-    const s=norm(r[0]||'')+' '+norm(r[1]||'');
-    return /지출.*항목|expense/.test(s);
-  }
-
   let incomeBlock=[], expenseBlock=[];
 
-  /* 전략A 시도 */
+  /* 전략 A */
   let inIncome=false, inExpense=false;
+  let foundIncome=false, foundExpense=false;
   rows.forEach(r=>{
-    if(isIncomeTitle(r)) { inIncome=true;inExpense=false;return; }
-    if(isExpenseTitle(r)){ inExpense=true;inIncome=false;return; }
+    if(isIncomeSection(r)){ inIncome=true;inExpense=false;foundIncome=true;return; }
+    if(isExpenseSection(r)){ inExpense=true;inIncome=false;foundExpense=true;return; }
     if(inIncome)  incomeBlock.push(r);
     if(inExpense) expenseBlock.push(r);
   });
 
-  /* 전략B~D: 전략A 실패 시 다단계 fallback ──────────────────
-     B: "수입기간" 행 이후 + "납부기간" 행으로 블록 구분
-     C: "항목" 행이 2개 이상 → 첫번째=수입블록, 두번째=지출블록
-     D: 모든 행을 수입으로 간주 (최후 fallback)
-  ─────────────────────────────────────────────────────────── */
+  console.log('[개인비용 전략A]',{foundIncome,foundExpense,수입블록:incomeBlock.length,지출블록:expenseBlock.length});
+
+  /* 전략 B: 수입기간/납부기간 키워드로 경계 탐지 */
   if(incomeBlock.length===0&&expenseBlock.length===0){
-    const allData=rows.filter(r=>r.some(c=>c));
-
-    /* 전략B: "수입기간"이 속한 블록까지 = 수입, 그 이후 = 지출 */
-    /* "납부기간" 행 위치로 경계 탐지 */
-    let periodSplitIdx=-1;
-    /* 먼저 "수입기간"과 "납부기간"이 모두 있는지 확인 */
-    const hasIncomePeriod=allData.some(r=>/수입.*기간/.test(norm(r[0]||'')));
-    const hasExpensePeriod=allData.some(r=>/납부.*기간/.test(norm(r[0]||'')));
-
-    if(hasIncomePeriod&&hasExpensePeriod){
-      /* "납부기간" 행 이전까지는 수입, 이후는 지출 */
-      /* 단, 납부기간 다음 행부터 지출 블록 시작 */
-      /* 가장 첫 번째 "납부기간" 전에 "수입기간"이 있는 구조 가정 */
-      /* → "납부기간" 이전 행들 = 수입 블록 */
+    const allData=rows.filter(r=>r.some(c=>nc(c)));
+    const hasIP=allData.some(r=>rowHas(r,/수입.*기간|기간.*수입/));
+    const hasEP=allData.some(r=>rowHas(r,/납부.*기간|기간.*납부/));
+    if(hasIP&&hasEP){
       for(let i=0;i<allData.length;i++){
-        if(/납부.*기간/.test(norm(allData[i][0]||''))){
-          /* 납부기간 행 직전 "항목" 행 찾기 */
-          let blockStart=i;
+        if(rowHas(allData[i],/납부.*기간|기간.*납부/)){
+          /* 납부기간 행 직전 "항목" 행 찾기 → 경계 */
+          let bStart=i;
           for(let j=i-1;j>=0;j--){
-            if(/^항목/.test(norm(allData[j][0]||''))){blockStart=j;break;}
+            if(/^항목$/.test(norm(allData[j].find(c=>nc(c))||''))){bStart=j;break;}
           }
-          incomeBlock =allData.slice(0,blockStart);
-          expenseBlock=allData.slice(blockStart);
-          periodSplitIdx=i;
+          incomeBlock=allData.slice(0,bStart);
+          expenseBlock=allData.slice(bStart);
           break;
         }
       }
     }
-
-    if(periodSplitIdx<0){
-      /* 전략C: "항목" 행 2개 기준 분리 */
-      const itemRowIdxs=allData.map((r,i)=>/^항목/.test(norm(r[0]||''))?i:-1).filter(i=>i>=0);
-      if(itemRowIdxs.length>=2){
-        incomeBlock =allData.slice(itemRowIdxs[0], itemRowIdxs[1]);
-        expenseBlock=allData.slice(itemRowIdxs[1]);
-      } else {
-        /* 전략D: 전체를 수입으로 */
-        incomeBlock=allData;
-      }
-    }
+    console.log('[개인비용 전략B]',{수입블록:incomeBlock.length,지출블록:expenseBlock.length});
   }
 
-  console.log('[개인비용 파서]',{
-    전략: incomeBlock.length||expenseBlock.length?'성공':'실패',
-    수입블록행수: incomeBlock.length,
-    지출블록행수: expenseBlock.length,
-    첫5행: rows.slice(0,5).map(r=>r.join('|'))
-  });
+  /* 전략 C: "항목" 행 2개 */
+  if(incomeBlock.length===0&&expenseBlock.length===0){
+    const allData=rows.filter(r=>r.some(c=>nc(c)));
+    const idxs=allData.map((r,i)=>/^항목$/.test(norm(r.find(c=>nc(c))||''))?i:-1).filter(i=>i>=0);
+    if(idxs.length>=2){
+      incomeBlock=allData.slice(idxs[0],idxs[1]);
+      expenseBlock=allData.slice(idxs[1]);
+    } else {
+      incomeBlock=allData; /* 전략 D fallback */
+    }
+    console.log('[개인비용 전략C/D]',{itemRowIdxs:idxs,수입블록:incomeBlock.length,지출블록:expenseBlock.length});
+  }
 
-  /* ── 가로형 블록 → 항목 객체 배열 변환 ──────────────────────
-     각 열(col 1 이상)을 독립 항목으로 변환
-     첫 번째 열은 속성명(label)이므로 건너뜀
+  /* ── 블록 → 항목 객체 배열 변환 ─────────────────────────────
+     각 열(1번 이상)을 독립 항목으로 변환
+     병합 셀 forward-fill: 빈 기간 셀 → 직전 열 기간값 사용
   ─────────────────────────────────────────────────────────── */
   function blockToItems(block, type){
-    /* 속성명 행 찾기 */
+    /* 속성명 행 찾기 — 행 전체 셀 기반 */
     let itemRow=null, amountRow=null, periodRow=null;
     block.forEach(r=>{
+      /* 빈 행 스킵 */
+      if(!r.some(c=>nc(c))) return;
       const lt=getLabelType(r);
-      if(lt==='item'   &&!itemRow)   itemRow=r;
-      if(lt==='amount' &&!amountRow) amountRow=r;
-      if(lt==='period' &&!periodRow) periodRow=r;
+      if((lt==='item')                            &&!itemRow)   itemRow=r;
+      if(lt==='amount'                            &&!amountRow) amountRow=r;
+      if((lt==='period'||lt==='income_period'||lt==='expense_period')&&!periodRow) periodRow=r;
+    });
+
+    console.log(`[blockToItems ${type}]`,{
+      itemRow:  itemRow  ?itemRow.slice(0,6).map(c=>nc(c)):null,
+      amountRow:amountRow?amountRow.slice(0,6).map(c=>nc(c)):null,
+      periodRow:periodRow?periodRow.slice(0,6).map(c=>nc(c)):null
     });
 
     if(!itemRow&&!amountRow) return [];
@@ -1852,32 +1872,27 @@ function renderPersonal(rows){
       periodRow?periodRow.length:0
     );
 
-    /* ★ 병합 셀 forward-fill ─────────────────────────────────
-       구글 시트 병합 셀은 CSV export 시 첫 번째 셀에만 값이 있고
-       나머지 병합된 셀은 빈 문자열로 옵니다.
-       → 기간 행에서 빈 열은 직전 열의 기간값을 그대로 사용 */
+    /* 기간 행 forward-fill: 병합 셀 대응 */
     const filledPeriod=[];
-    let lastPeriod='';
+    let lastPer='';
     for(let col=1;col<maxCols;col++){
       const raw=nc(periodRow?periodRow[col]:'');
-      if(raw) lastPeriod=raw;          /* 값 있으면 갱신 */
-      filledPeriod[col]=lastPeriod;    /* 빈 셀이면 이전 값 유지 */
+      if(raw) lastPer=raw;
+      filledPeriod[col]=lastPer;
     }
 
     const items=[];
     for(let col=1;col<maxCols;col++){
-      const itemName =nc(itemRow  ?itemRow[col]  :'');
-      const amtRaw   =nc(amountRow?amountRow[col]:'');
-      const periodStr=filledPeriod[col]||'';  /* forward-fill 적용 */
-
+      const itemName=nc(itemRow  ?itemRow[col]  :'');
+      const amtRaw  =nc(amountRow?amountRow[col]:'');
+      const perStr  =filledPeriod[col]||'';
       if(!itemName&&!amtRaw) continue;
-      const amount=parseAmt(amtRaw)||0;
-      items.push({ type, item:itemName||'(항목없음)', amount, period:periodStr });
+      items.push({type, item:itemName||'(항목없음)', amount:parseAmt(amtRaw)||0, period:perStr});
     }
     return items;
   }
 
-  const incomeItems =blockToItems(incomeBlock,  '수입');
+    const incomeItems =blockToItems(incomeBlock,  '수입');
   const expenseItems=blockToItems(expenseBlock, '지출');
   const allItems=[...incomeItems,...expenseItems];
 
