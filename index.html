@@ -1697,7 +1697,7 @@ function renderLease(rows){
 
   sec.innerHTML=`
     <div class="notice">📡 구글 시트 실시간 연동 · 임대차계약현황</div>
-    <div class="kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(100px,1fr));flex-wrap:nowrap">
+    <div class="kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(0,120px));justify-content:start;">
       <div class="kpi b"><div class="kpi-lbl">총 계약</div><div class="kpi-val">${data.length}</div><div class="kpi-sub">유효 계약 건수</div></div>
       ${aC?`<div class="kpi g"><div class="kpi-lbl">계약 유효</div><div class="kpi-val" style="color:var(--green)">${aC}</div><div class="kpi-sub">진행중</div></div>`:''}
       ${eC?`<div class="kpi r"><div class="kpi-lbl">만료·종료</div><div class="kpi-val" style="color:var(--red)">${eC}</div><div class="kpi-sub">종료</div></div>`:''}
