@@ -2470,10 +2470,12 @@ function renderCost(k,rows){
 }
 
 /* ════════════════════════════════════════════════════════════
-   renderCorp — 법인비용 Cash Flow 전용 렌더러 (v2)
+   renderCorp — 법인비용 Cash Flow 전용 렌더러 (v3)
    ★ 시트 컬럼 자동 탐색 (하드코딩 없음)
    ★ Leaf Node 기준 총액 합산 (부모+자식 중복 방지)
-   ★ 납부방법 상세(상세일자 / 매월 / n회 분할 / 일시납) 파싱
+   ★ 납부방법 상세 파싱 (특정 월 분할 / 일시납 / 매월 / 기간)
+   ★ monthly 케이스: 총액÷기간 = 월금액 (getBestAmt 오용 제거)
+   ★ 기간 파싱: 숫자만 추출 방식 → 정규식 개월수 파싱으로 교체
    ★ 개인비용 탭과 동일한 UX 구조 (KPI + 요약 + 월별 캐시플로우)
 ════════════════════════════════════════════════════════════ */
 function renderCorp(rows){
@@ -2514,16 +2516,18 @@ function renderCorp(rows){
 
   /* 날짜 패턴 방어 */
   const DATE_LIKE=/^\d{8}$|^\d{4}[.\-\/]\d{2}/;
+  /* getBestAmt: 주로 금액 존재 여부 확인용 — totalIdx 포함하지 않음 */
   function getBestAmt(r){
     if(amtIdx>=0){const v=av(r,amtIdx);if(v)return v;}
-    if(totalIdx>=0){const v=av(r,totalIdx);if(v)return v;}
-    const skipIdx=new Set([catIdx,itemIdx,startIdx,endIdx,periodIdx,methodIdx,methodDetIdx,stageIdx,noteIdx].filter(i=>i>=0));
+    /* totalIdx는 여기서 사용하지 않음 — getMonthlyAmt/getTotal에서만 처리 */
+    const skipIdx=new Set([catIdx,itemIdx,startIdx,endIdx,periodIdx,
+      methodIdx,methodDetIdx,stageIdx,noteIdx,totalIdx].filter(i=>i>=0));
     for(let i=0;i<r.length;i++){
       if(skipIdx.has(i))continue;
       const raw=String(r[i]||'').trim();
       if(!raw||DATE_LIKE.test(raw))continue;
       const v=parseAmt(raw);
-      if(v>=1000&&v<1e13)return v;
+      if(v>=1000&&v<1e12)return v;
     }
     return 0;
   }
@@ -2658,22 +2662,33 @@ function renderCorp(rows){
     return{type:'monthly'};
   }
 
-  /* ══ [기간 파싱] ══════════════════════════════════════════ */
+  /* ══ [기간(개월수) 파싱] ════════════════════════════════════
+     ★ 중요: "replace(/[^0-9]/g,'')" 방식 절대 금지
+       → "2026-09-01 ~ 2027-02-28 (6개월)" 에서 숫자 전체 추출 시
+          202609012027022826 같은 쓰레기 값 발생
+     ★ 개월수는 반드시 "(N개월)" 패턴 또는 시작/종료 차이로만 계산
+  ════════════════════════════════════════════════════════ */
   function getPeriod(r){
+    /* 1순위: 기간 컬럼에서 "(N개월)" 또는 "N개월" 또는 단독 숫자(1~240) */
     if(periodIdx>=0){
-      const p=parseInt(String(sv(r,periodIdx)).replace(/[^0-9]/g,''));
-      if(!isNaN(p)&&p>0) return p;
+      const raw=String(sv(r,periodIdx)||'').trim();
+      /* "(6개월)", "6개월", "6 개월" */
+      const mMo=raw.match(/(\d+)\s*개월/);
+      if(mMo){const p=parseInt(mMo[1]);if(p>0&&p<=240)return p;}
+      /* 단독 숫자(순수 개월 수) — 날짜 패턴이 아닌 경우만 */
+      if(/^\d{1,3}$/.test(raw)){const p=parseInt(raw);if(p>0&&p<=240)return p;}
     }
+    /* 2순위: 시작+종료 모두 있을 때 월 차이 계산 */
     if(startIdx>=0&&endIdx>=0){
       const s=sv(r,startIdx).trim(),e=sv(r,endIdx).trim();
       const ms=s.match(/(\d{4})[.\-\/](\d{1,2})/);
       const me=e.match(/(\d{4})[.\-\/](\d{1,2})/);
       if(ms&&me){
         const diff=(parseInt(me[1])-parseInt(ms[1]))*12+(parseInt(me[2])-parseInt(ms[2]));
-        if(diff>=0) return diff+1;
+        if(diff>=0&&diff<=240) return diff+1;
       }
     }
-    return 1;
+    return 1; /* 기본 1개월 */
   }
 
   function getDateRange(r){
@@ -2688,14 +2703,37 @@ function renderCorp(rows){
     };
   }
 
-  /* ══ [총액 계산] — totalIdx 우선, 없으면 월금액×기간 ═════ */
+  /* ══ [총액 계산] ═════════════════════════════════════════════
+     ★ totalIdx 컬럼이 있고 값이 있으면 → 그 값이 총액
+     ★ totalIdx 없고 amtIdx(월금액) 있으면 → 월금액 × 기간 = 총액
+     ★ amtIdx도 없으면 → fallback (다른 숫자 컬럼 탐색) × 기간
+  ═════════════════════════════════════════════════════════ */
   function getTotal(r){
+    /* totalIdx 컬럼이 명시적으로 있으면 최우선 */
     if(totalIdx>=0){const t=av(r,totalIdx);if(t&&t<1e13)return t;}
-    const mv=getBestAmt(r);
+    /* 월금액 × 기간 */
+    const mv=getMonthlyAmt(r);
     if(!mv) return 0;
     const p=getPeriod(r);
     const result=mv*p;
     return result<1e13?result:mv;
+  }
+
+  /* ── 월 단가 전용 함수 (총액 컬럼은 절대 사용하지 않음) ── */
+  function getMonthlyAmt(r){
+    /* amtIdx: 월금액/단가 컬럼 우선 */
+    if(amtIdx>=0){const v=av(r,amtIdx);if(v)return v;}
+    /* amtIdx가 없을 때만 fallback — 날짜·총액·비고 열 제외 */
+    const skipIdx=new Set([catIdx,itemIdx,startIdx,endIdx,periodIdx,
+      methodIdx,methodDetIdx,stageIdx,noteIdx,totalIdx].filter(i=>i>=0));
+    for(let i=0;i<r.length;i++){
+      if(skipIdx.has(i))continue;
+      const raw=String(r[i]||'').trim();
+      if(!raw||/^\d{8}$|^\d{4}[.\-\/]\d{2}/.test(raw))continue;
+      const v=parseAmt(raw);
+      if(v>=1000&&v<1e12)return v; /* 1,000원 이상 1조 미만 */
+    }
+    return 0;
   }
 
   /* ══ [Leaf Node 필터링] ══════════════════════════════════
@@ -2797,10 +2835,16 @@ function renderCorp(rows){
     let endYM;
     if(dr.hasEnd){
       endYM=dr.ey*100+dr.em;
+    } else if(dr.hasStart){
+      /* 시작은 있고 종료는 없음 → 시작 + (period-1)개월 */
+      const base0=dr.sy*12+(dr.sm-1); /* 0-based 월 인덱스 */
+      const end0=base0+(period-1);
+      endYM=Math.floor(end0/12)*100+(end0%12+1);
     } else {
-      const totalMo=dr.sy*12+dr.sm-1+period-1;
-      endYM=Math.floor(totalMo/12)*100+(totalMo%12+1);
-      if(!dr.hasStart){startYM=minYear*100+1;endYM=startYM+period-1;}
+      /* 시작/종료 모두 없음 → minYear.01 ~ minYear.01+period */
+      startYM=minYear*100+1;
+      const end0=(minYear*12)+(period-1);
+      endYM=Math.floor(end0/12)*100+(end0%12+1);
     }
 
     switch(sched.type){
@@ -2840,18 +2884,21 @@ function renderCorp(rows){
         const rStartYM=sched.sy*100+sched.sm;
         const rEndYM=sched.ey*100+sched.em;
         if(cur<rStartYM||cur>rEndYM) return 0;
-        const months=(sched.ey-sched.sy)*12+(sched.em-sched.sm)+1;
-        const mv=getBestAmt(r);
-        return mv>0?mv:months>0?total/months:total;
+        const moCnt=(sched.ey-sched.sy)*12+(sched.em-sched.sm)+1;
+        const mv=getMonthlyAmt(r);
+        return mv>0?mv:moCnt>0?total/moCnt:total;
       }
 
       /* ── 매월 납부 (기본) ── */
       case'monthly':
       default:{
         if(cur<startYM||cur>endYM) return 0;
-        const mv=getBestAmt(r);
+        /* 월 단가 컬럼이 있으면 그 값 사용 */
+        const mv=getMonthlyAmt(r);
         if(mv>0) return mv;
-        return period>0?total/period:total;
+        /* 월 단가 없으면 총액÷기간 */
+        const p=getPeriod(r);
+        return p>0?total/p:total;
       }
     }
   }
@@ -2929,7 +2976,7 @@ function renderCorp(rows){
   const summaryRows=catOrder.map(cat=>{
     const crows=catMap.get(cat);
     const total=catTotals.get(cat);
-    /* 기간 요약 */
+    /* 기간 요약 — 파싱된 날짜 사용 */
     let periodSummary='—';
     const drs=crows.map(r=>getDateRange(r)).filter(d=>d.hasStart);
     if(drs.length>0){
@@ -2988,20 +3035,30 @@ function renderCorp(rows){
     const item=sv(r,itemIdx)||sv(r,catIdx)||'(항목없음)';
     const cat=getCat(r);
     const total=getTotal(r);
-    const period=getPeriod(r);
     const dr=getDateRange(r);
-    const s=sv(r,startIdx),e=sv(r,endIdx);
-    const periodStr=s&&e?`${s} ~ ${e}`:period>1?`${period}개월`:'—';
+    const period=getPeriod(r);
+    /* 기간 표시: 파싱된 날짜 사용 (원본 셀 값 직접 사용 금지) */
+    let periodStr='—';
+    if(dr.hasStart&&dr.hasEnd){
+      periodStr=`${dr.sy}.${String(dr.sm).padStart(2,'0')} ~ ${dr.ey}.${String(dr.em).padStart(2,'0')}`;
+      if(period>1) periodStr+=` (${period}개월)`;
+    } else if(dr.hasStart){
+      periodStr=`${dr.sy}.${String(dr.sm).padStart(2,'0')} ~`;
+      if(period>1) periodStr+=` ${period}개월`;
+    } else if(period>1){
+      periodStr=`${period}개월`;
+    }
     const sched=getPaySchedule(r);
-    /* 납부방법 표시 — 상세 포함 */
+    /* 납부방법 표시 */
     let methodLabel='매월';
     if(sched.type==='dates')        methodLabel=`${sched.dates.length}회 분할`;
     else if(sched.type==='lump')    methodLabel='일시납'+(sched.ym?` (${sched.ym.y}.${String(sched.ym.m).padStart(2,'0')})` :'');
     else if(sched.type==='installment') methodLabel=`${sched.count}회 분할`;
     else if(sched.type==='range')   methodLabel='기간납부';
-    /* 납부방법 상세 원문 표시 */
+    /* 납부방법 상세 원문 */
     const detStr=sv(r,methodDetIdx);
-    const detDisp=detStr&&detStr!==methodLabel?`<span style="color:var(--t4);font-size:10px;display:block;margin-top:2px">${detStr}</span>`:'';
+    const detDisp=(detStr&&detStr!==methodLabel&&detStr!=='—'&&detStr!=='-')
+      ?`<span style="color:var(--t4);font-size:10px;display:block;margin-top:2px">${detStr}</span>`:'';
     const note=sv(r,noteIdx);
     return`<tr>
       <td class="label">${item}${note?`<span style="color:var(--t4);font-size:10px;margin-left:6px">${note}</span>`:''}</td>
