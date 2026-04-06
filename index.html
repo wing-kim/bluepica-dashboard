@@ -88,9 +88,9 @@ header{display:flex;align-items:center;justify-content:space-between;
 .kpi.y:hover{border-color:rgba(232,160,32,.35)}
 .kpi.p:hover{border-color:rgba(139,92,246,.35)}
 .kpi.r:hover{border-color:rgba(232,64,64,.35)}
-.kpi-lbl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;font-weight:600}
+.kpi-lbl{font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
 .kpi-val{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--t1);letter-spacing:-.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpi-sub{font-size:9.5px;color:#6b7899;margin-top:4px;font-weight:400}
+.kpi-sub{font-size:9.5px;color:var(--t4);margin-top:4px;font-weight:400}
 
 .card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
 .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
@@ -149,9 +149,8 @@ td:first-child{color:var(--t1);font-weight:500}
   background:var(--blue);box-shadow:0 0 6px rgba(59,127,255,.5);z-index:10;border-radius:1px}
 .tl-now-tag{position:absolute;top:3px;left:50%;transform:translateX(-50%);
   font-family:var(--mono);font-size:8px;color:var(--blue);
-  background:rgba(8,9,13,.95);padding:2px 6px;border-radius:3px;
-  white-space:nowrap;letter-spacing:.3px;font-weight:600;
-  border:1px solid rgba(59,127,255,.25)}
+  background:rgba(8,9,13,.95);padding:1px 5px;border-radius:3px;
+  white-space:nowrap;letter-spacing:.5px}
 .g-row{display:flex;align-items:center;padding:10px 0;
   border-bottom:1px solid rgba(34,38,54,.5);transition:background .12s;min-height:44px}
 .g-row:last-child{border-bottom:none}
@@ -177,7 +176,7 @@ td:first-child{color:var(--t1);font-weight:500}
 .g-fill{height:100%;border-radius:4px;position:absolute;
   transition:width .8s cubic-bezier(.4,0,.2,1)}
 .g-dur{width:72px;flex-shrink:0;text-align:right;padding-left:10px;
-  font-family:var(--mono);font-size:11px;color:#8890aa;white-space:nowrap;font-weight:500}
+  font-family:var(--mono);font-size:11px;color:var(--t3);white-space:nowrap}
 /* 단계별 구별 색상 — 절제된 톤, 형광/그라데이션 없음 */
 .gc0{background:#4F7CFF}  /* 블루 */
 .gc1{background:#22c98a}  /* 에메랄드 */
@@ -782,7 +781,7 @@ function renderTimeline(rows){
     <div class="tl-ruler-track">
       <div class="tl-ruler-years">${yearSegs.join('')}</div>
       <div class="tl-now-line" style="left:${nowPct}%">
-        <div class="tl-now-tag">NOW · ${now.getFullYear()}년 ${now.getMonth()+1}월</div>
+        <div class="tl-now-tag">NOW</div>
       </div>
     </div>
     <div class="tl-dur-head">기간</div>
@@ -1161,12 +1160,12 @@ function renderIRR(rows){
         </div>
         <div class="calc-field">
           <label>임대료 연 인상률 <span class="calc-val-badge" id="lbl_rentUp">2.0%</span></label>
-          <input type="range" min="0" max="10" step="0.5" value="2"
+          <input type="range" min="0" max="15" step="0.5" value="2"
             oninput="irrSlider('rentUp',this.value,'%')" id="sl_rentUp">
         </div>
         <div class="calc-field">
           <label>공실률 <span class="calc-val-badge" id="lbl_vacancy">5.0%</span></label>
-          <input type="range" min="0" max="30" step="1" value="5"
+          <input type="range" min="0" max="100" step="1" value="5"
             oninput="irrSlider('vacancy',this.value,'%')" id="sl_vacancy">
         </div>
       </div>
@@ -1175,19 +1174,23 @@ function renderIRR(rows){
       <div class="calc-block">
         <div class="calc-block-title">🏦 대출 조건</div>
         <div class="calc-field">
-          <label>A필지 금리 <span class="calc-val-badge" id="lbl_rateA">3.5%</span></label>
-          <input type="range" min="1" max="10" step="0.1" value="3.5"
+          <label>압구정로 112 금리 <span class="calc-val-badge" id="lbl_rateA">3.5%</span></label>
+          <input type="range" min="0" max="10" step="0.1" value="3.5"
             oninput="irrSlider('rateA',this.value,'%')" id="sl_rateA">
         </div>
         <div class="calc-field">
-          <label>B필지 금리 <span class="calc-val-badge" id="lbl_rateB">3.5%</span></label>
-          <input type="range" min="1" max="10" step="0.1" value="3.5"
+          <label>압구정로8길 3 금리 <span class="calc-val-badge" id="lbl_rateB">3.5%</span></label>
+          <input type="range" min="0" max="10" step="0.1" value="3.5"
             oninput="irrSlider('rateB',this.value,'%')" id="sl_rateB">
         </div>
         <div class="calc-field">
           <label>취득세율 <span class="calc-val-badge" id="lbl_acqTax">4.6%</span></label>
-          <input type="range" min="1" max="10" step="0.1" value="4.6"
+          <input type="range" min="0" max="15" step="0.1" value="4.6"
             oninput="irrSlider('acqTax',this.value,'%')" id="sl_acqTax">
+        </div>
+        <div style="margin-top:8px;padding:7px 10px;background:rgba(59,127,255,.05);border:1px solid rgba(59,127,255,.15);border-radius:5px;font-size:9.5px;color:#6b7899;line-height:1.6">
+          💡 양도세: 누진세율 자동 (6~45% + 지방세 10%) · 장특공제 자동<br>
+          🏠 보유세: 공시지가 기반 자동 계산 (재산세 + 종부세 + 부가세)
         </div>
       </div>
 
@@ -1195,23 +1198,23 @@ function renderIRR(rows){
       <div class="calc-block">
         <div class="calc-block-title">🏗️ 재건축 & 신축</div>
         <div class="calc-field">
-          <label>시공비 (만원/㎡) <span class="calc-val-badge" id="lbl_constCost">350만</span></label>
-          <input type="range" min="100" max="1000" step="10" value="350"
-            oninput="irrSlider('constCost',this.value,'만')" id="sl_constCost">
+          <label>시공비 (억원) <span class="calc-val-badge" id="lbl_constCost">110억</span></label>
+          <input type="range" min="10000000" max="20000000000" step="100000000" value="11000000000"
+            oninput="irrSliderAmt('constCost',this.value)" id="sl_constCost">
         </div>
         <div class="calc-field">
-          <label>설계·감리비 (만원) <span class="calc-val-badge" id="lbl_designCost">5,000만</span></label>
-          <input type="range" min="1000" max="50000" step="500" value="5000"
-            oninput="irrSlider('designCost',this.value,'만')" id="sl_designCost">
+          <label>설계·감리비 (억원) <span class="calc-val-badge" id="lbl_designCost">10억</span></label>
+          <input type="range" min="500000000" max="2000000000" step="100000000" value="1000000000"
+            oninput="irrSliderAmt('designCost',this.value)" id="sl_designCost">
         </div>
         <div class="calc-field">
-          <label>공사 기간 (개월) <span class="calc-val-badge" id="lbl_constMo">18개월</span></label>
-          <input type="range" min="6" max="48" step="1" value="18"
+          <label>공사 기간 (개월) <span class="calc-val-badge" id="lbl_constMo">24개월</span></label>
+          <input type="range" min="10" max="60" step="1" value="24"
             oninput="irrSlider('constMo',this.value,'개월')" id="sl_constMo">
         </div>
         <div class="calc-field">
-          <label>신축 후 가치 배수 <span class="calc-val-badge" id="lbl_valueMult">2.5x</span></label>
-          <input type="range" min="1" max="5" step="0.1" value="2.5"
+          <label>신축 후 가치 배수 <span class="calc-val-badge" id="lbl_valueMult">1.8x</span></label>
+          <input type="range" min="0" max="10" step="0.1" value="1.8"
             oninput="irrSlider('valueMult',this.value,'x')" id="sl_valueMult">
         </div>
       </div>
@@ -1221,28 +1224,28 @@ function renderIRR(rows){
         <div class="calc-block-title">🏢 신축 대출 & 임대</div>
         <div class="calc-field">
           <label>신축비용 대출 비율 <span class="calc-val-badge" id="lbl_pfRatio">60%</span></label>
-          <input type="range" min="0" max="90" step="5" value="60"
+          <input type="range" min="0" max="100" step="5" value="60"
             oninput="irrSlider('pfRatio',this.value,'%')" id="sl_pfRatio">
         </div>
         <div class="calc-field">
-          <label>신축 대출 금리 <span class="calc-val-badge" id="lbl_pfRate">4.5%</span></label>
-          <input type="range" min="1" max="12" step="0.1" value="4.5"
+          <label>신축 대출 금리 <span class="calc-val-badge" id="lbl_pfRate">5.0%</span></label>
+          <input type="range" min="0" max="15" step="0.1" value="5"
             oninput="irrSlider('pfRate',this.value,'%')" id="sl_pfRate">
         </div>
         <div class="calc-field">
-          <label>신축 월 임대료 (만원) <span class="calc-val-badge" id="lbl_newRent">3,000만</span></label>
-          <input type="range" min="500" max="20000" step="500" value="3000"
+          <label>신축 월 임대료 (만원) <span class="calc-val-badge" id="lbl_newRent">15,000만</span></label>
+          <input type="range" min="3000" max="30000" step="500" value="15000"
             oninput="irrSlider('newRent',this.value,'만')" id="sl_newRent">
         </div>
         <div class="calc-field">
           <label>신축 보증금 (만원) <span class="calc-val-badge" id="lbl_newDep">10,000만</span></label>
-          <input type="range" min="0" max="100000" step="1000" value="10000"
+          <input type="range" min="1000" max="300000" step="1000" value="10000"
             oninput="irrSlider('newDep',this.value,'만')" id="sl_newDep">
         </div>
         <!-- [추가] 신축 후 공실률 — 신축 임대 수익 계산에 반영 -->
         <div class="calc-field">
           <label>신축 후 공실률 <span class="calc-val-badge" id="lbl_newVacancy">10.0%</span></label>
-          <input type="range" min="0" max="50" step="1" value="10"
+          <input type="range" min="0" max="100" step="1" value="10"
             oninput="irrSlider('newVacancy',this.value,'%')" id="sl_newVacancy">
         </div>
       </div>
@@ -1251,13 +1254,13 @@ function renderIRR(rows){
       <div class="calc-block">
         <div class="calc-block-title">📅 분석 기간</div>
         <div class="calc-field">
-          <label>임대 보유 기간 (년) <span class="calc-val-badge" id="lbl_holdYrs">5년</span></label>
-          <input type="range" min="1" max="15" step="1" value="5"
+          <label>임대 보유 기간 (년) <span class="calc-val-badge" id="lbl_holdYrs">4년</span></label>
+          <input type="range" min="1" max="40" step="1" value="4"
             oninput="irrSlider('holdYrs',this.value,'년')" id="sl_holdYrs">
         </div>
         <div class="calc-field">
-          <label>총 분석 기간 (년) <span class="calc-val-badge" id="lbl_totalYrs">15년</span></label>
-          <input type="range" min="5" max="30" step="1" value="15"
+          <label>총 분석 기간 (년) <span class="calc-val-badge" id="lbl_totalYrs">7년</span></label>
+          <input type="range" min="1" max="40" step="1" value="7"
             oninput="irrSlider('totalYrs',this.value,'년')" id="sl_totalYrs">
         </div>
       </div>
@@ -1316,23 +1319,42 @@ function irrSlider(key,val,unit){
   else                 el.textContent=val+unit;
 }
 
+/* 절대 금액 슬라이더 (억원 단위 표시) */
+function irrSliderAmt(key,val){
+  const el=document.getElementById('lbl_'+key);
+  if(!el)return;
+  const n=parseFloat(val);
+  if(n>=1e8) el.textContent=(n/1e8).toFixed(0)+'억';
+  else if(n>=1e4) el.textContent=Math.round(n/1e4).toLocaleString()+'만';
+  else el.textContent=n.toLocaleString()+'원';
+}
+
 /* 시나리오 프리셋 적용 */
 function irrSetScenario(scen,btn){
-  /* 시나리오별 값 매핑 (하드코딩이 아니라 상수 테이블) */
+  /* 시나리오별 값 매핑
+     constCost/designCost: 원(절대금액) 단위 */
   const PRESETS={
-    conservative:{priceUp:1,rentUp:1,vacancy:10,newVacancy:15,rateA:4.5,rateB:4.5,constCost:420,designCost:6000,constMo:24,valueMult:1.8,pfRatio:50,pfRate:5.5,newRent:2000,newDep:8000,holdYrs:3,totalYrs:12},
-    base:        {priceUp:3,rentUp:2,vacancy:5, newVacancy:10,rateA:3.5,rateB:3.5,constCost:350,designCost:5000,constMo:18,valueMult:2.5,pfRatio:60,pfRate:4.5,newRent:3000,newDep:10000,holdYrs:5,totalYrs:15},
-    optimistic:  {priceUp:6,rentUp:3,vacancy:2, newVacancy:5, rateA:3.0,rateB:3.0,constCost:300,designCost:4000,constMo:14,valueMult:3.5,pfRatio:70,pfRate:3.8,newRent:4500,newDep:15000,holdYrs:7,totalYrs:18},
+    conservative:{priceUp:1,  rentUp:1,  vacancy:5,newVacancy:10,rateA:3.5,rateB:3.5,acqTax:4.6,
+      constCost:11000000000,designCost:1000000000,constMo:24,valueMult:1.8,
+      pfRatio:60,pfRate:5,newRent:15000,newDep:10000,holdYrs:4,totalYrs:7},
+    base:        {priceUp:3,  rentUp:2,  vacancy:5,newVacancy:10,rateA:3.5,rateB:3.5,acqTax:4.6,
+      constCost:11000000000,designCost:1000000000,constMo:24,valueMult:1.8,
+      pfRatio:60,pfRate:5,newRent:15000,newDep:10000,holdYrs:4,totalYrs:7},
+    optimistic:  {priceUp:5.5,rentUp:3.5,vacancy:5,newVacancy:10,rateA:3.5,rateB:3.5,acqTax:4.6,
+      constCost:11000000000,designCost:1000000000,constMo:24,valueMult:1.8,
+      pfRatio:60,pfRate:5,newRent:15000,newDep:10000,holdYrs:4,totalYrs:7},
   };
   const p=PRESETS[scen];if(!p)return;
 
   /* 슬라이더 & 뱃지 일괄 업데이트 */
   const units={priceUp:'%',rentUp:'%',vacancy:'%',newVacancy:'%',rateA:'%',rateB:'%',acqTax:'%',
-    constCost:'만',designCost:'만',constMo:'개월',valueMult:'x',
+    constMo:'개월',valueMult:'x',
     pfRatio:'%',pfRate:'%',newRent:'만',newDep:'만',holdYrs:'년',totalYrs:'년'};
+  /* constCost/designCost는 절대금액 슬라이더 */
   Object.entries(p).forEach(([k,v])=>{
     const sl=document.getElementById('sl_'+k);if(sl)sl.value=v;
-    irrSlider(k,v,units[k]||'');
+    if(k==='constCost'||k==='designCost') irrSliderAmt(k,v);
+    else irrSlider(k,v,units[k]||'');
   });
 
   /* 버튼 active 토글 */
@@ -1354,13 +1376,13 @@ function irrCalcRun(){
     rateA      :g('sl_rateA')/100,
     rateB      :g('sl_rateB')/100,
     acqTax     :g('sl_acqTax')/100,        // 취득세율 — 초기 투자금에 반영됨
-    constCost  :g('sl_constCost')*10000,   // 만원→원
-    designCost :g('sl_designCost')*10000,
+    constCost  :g('sl_constCost'),         // 원(절대금액) 직접 사용
+    designCost :g('sl_designCost'),        // 원(절대금액) 직접 사용
     constMo    :g('sl_constMo'),
     valueMult  :g('sl_valueMult'),
     pfRatio    :g('sl_pfRatio')/100,
     pfRate     :g('sl_pfRate')/100,
-    newRent    :g('sl_newRent')*10000,
+    newRent    :g('sl_newRent')*10000,     // 만원→원
     newDep     :g('sl_newDep')*10000,
     newVacancy :g('sl_newVacancy')/100||0.10, // 신축 후 공실률 (기본 10%)
     holdYrs    :g('sl_holdYrs'),
@@ -1444,12 +1466,12 @@ function irrCalcRun(){
   const cfHold=[];
   for(let yr=1;yr<=S.holdYrs;yr++){
     const rentInc=totalRent*12*Math.pow(1+S.rentUp,yr-1)*(1-S.vacancy);
-    const cf=rentInc-annualInterest;
+    const cf=rentInc-annualInterest-annualPropTax;
     cfHold.push(cf);
   }
 
-  /* 신축 비용 (면적 × 시공비 + 설계·감리) */
-  const constTotalCost=totalArea*S.constCost+S.designCost;
+  /* 신축 비용 (시공비 절대금액 + 설계·감리) */
+  const constTotalCost=S.constCost+S.designCost;
   const pfLoan=constTotalCost*S.pfRatio;
   const equityConst=constTotalCost-pfLoan;  /* 신축 자기자본 */
 
@@ -1463,7 +1485,7 @@ function irrCalcRun(){
   for(let yr=1;yr<=Math.max(1,Math.round(newLeasYrs));yr++){
     /* 신축 임대: newRent에 신축 공실률(newVacancy) 적용 */
     const rentInc=S.newRent*12*Math.pow(1+S.rentUp,yr-1)*(1-S.newVacancy);
-    const cf=rentInc-newAnnualInterest;
+    const cf=rentInc-newAnnualInterest-annualPropTax;
     cfNew.push(cf);
   }
 
@@ -1534,8 +1556,19 @@ function irrCalcRun(){
   const equityMultiple=totalInvest>0?(exitNet+Math.max(0,cumRent)+totalInvest)/totalInvest:0;
   /* Cash-on-Cash: 첫 해 임대수익 / 총 자기자본 */
   const coc=cfHold.length>0&&totalInvest>0?cfHold[0]/totalInvest:0;
-  /* 보유세 추정: 공시지가의 약 0.4% (단순화) */
-  const annualPropTax=(totalLandVal||totalBuy)*0.004;
+  /* 보유세 자동 계산: 공시지가 기반
+     - 재산세(토지+건물): 공시가의 약 0.2~0.4%
+     - 도시지역분: 재산세의 14%
+     - 교육세: 재산세의 20%
+     공시지가 = totalLandVal (시트 기반), 없으면 매입가의 70% 추정 */
+  const assessedVal=totalLandVal||totalBuy*0.7;
+  const propTaxBase=assessedVal*0.6;           // 공정시장가액비율 60%
+  const buildingTax=propTaxBase*0.0025;        // 건물 재산세 0.25%
+  const landTax=propTaxBase*0.004;             // 토지 재산세 0.4%
+  const rawPropTax=buildingTax+landTax;
+  const cityTax=rawPropTax*0.14;               // 도시지역분 14%
+  const eduTax=rawPropTax*0.20;               // 교육세 20%
+  const annualPropTax=rawPropTax+cityTax+eduTax; // 합산 보유세
   /* LTV */
   const ltv=totalBuy>0?totalLoan/totalBuy:0;
   /* 신축 후 가치 */
@@ -1558,46 +1591,53 @@ function irrCalcRun(){
   let cfIdx=0,cfCum=0;
   /* t=0: 초기 투자 */
   cfCum+=cashflows[0];
-  cfTableRows.push({yr:'0(투자)',stage:'초기투자',rent:0,interest:-(equity>0?annualInterest:0),propTax:0,constCost:0,net:cashflows[0],cum:cfCum});
+  cfTableRows.push({yr:'0',stage:'초기투자',rent:0,acqInterest:0,pfInterest:0,propTax:0,constCost:equity,net:cashflows[0],cum:cfCum,assetVal:totalBuy});
   cfIdx=1;
   /* 임대 보유 */
   for(let i=0;i<cfHold.length;i++){
     const rentInc=totalRent*12*Math.pow(1+S.rentUp,i)*(1-S.vacancy);
+    const assetV=totalBuy*Math.pow(1+S.priceUp,i+1);
     cfCum+=cfHold[i];
-    cfTableRows.push({yr:i+1,stage:'임대보유',rent:rentInc,interest:annualInterest,propTax:annualPropTax,constCost:0,net:cfHold[i],cum:cfCum});
+    cfTableRows.push({yr:i+1,stage:'임대보유',rent:rentInc,acqInterest:annualInterest,pfInterest:0,propTax:annualPropTax,constCost:0,net:cfHold[i],cum:cfCum,assetVal:assetV});
     cfIdx++;
   }
   /* 공사기간 */
+  const assetVConst=totalBuy*Math.pow(1+S.priceUp,S.holdYrs+constYrsInt);
   cfCum+=cfConst;
-  cfTableRows.push({yr:S.holdYrs+constYrsInt,stage:'공사기간',rent:0,interest:0,propTax:0,constCost:equityConst,net:cfConst,cum:cfCum});
+  cfTableRows.push({yr:S.holdYrs+constYrsInt,stage:'공사기간',rent:0,acqInterest:0,pfInterest:0,propTax:0,constCost:equityConst,net:cfConst,cum:cfCum,assetVal:assetVConst});
   cfIdx++;
   /* 신축 운영 */
   for(let i=0;i<cfNew.length;i++){
     const rentInc=S.newRent*12*Math.pow(1+S.rentUp,i)*(1-S.newVacancy);
     const isLast=(i===cfNew.length-1);
     const netV=isLast?(cfNew[i]+exitNet):cfNew[i];
+    const assetVNew=exitLandVal*Math.pow(1+S.priceUp,S.holdYrs+constYrsInt+i+1)*S.valueMult;
     cfCum+=netV;
-    cfTableRows.push({yr:S.holdYrs+constYrsInt+i+1,stage:'신축운영',rent:rentInc,interest:newAnnualInterest,propTax:0,constCost:0,net:netV,cum:cfCum,exit:isLast?exitNet:0});
+    cfTableRows.push({yr:S.holdYrs+constYrsInt+i+1,stage:'신축운영',rent:rentInc,acqInterest:0,pfInterest:newAnnualInterest,propTax:annualPropTax,constCost:0,net:netV,cum:cfCum,exit:isLast?exitNet:0,assetVal:assetVNew});
   }
 
   /* ── 민감도 분석 ── */
-  /* 금리 × 시세상승률 테이블 */
-  const RATE_STEPS=[0.02,0.03,0.035,0.04,0.05,0.06];
+  /* 금리 범위: 2% ~ 8% */
+  const RATE_STEPS=[0.02,0.03,0.04,0.05,0.06,0.07,0.08];
   const PRICE_STEPS=[0.01,0.02,0.03,0.05,0.07,0.10];
-  const MULT_STEPS=[1.5,2.0,2.5,3.0,3.5,4.0];
+  const MULT_STEPS=[1.2,1.5,1.8,2.2,2.8,3.5];
 
   function calcSensIRR(overrides){
     /* 기존 calcIRR + cashflows 재계산 (overrides로 일부 변수 교체) */
     const so={...S,...overrides};
-    const constTotal2=totalArea*so.constCost+so.designCost;
+    const constTotal2=so.constCost+so.designCost;
     const pfL2=constTotal2*so.pfRatio;
     const eq2=totalBuy-totalLoan-totalDep+totalBuy*so.acqTax;
     if(eq2<=0) return null;
     const avgR2=(so.rateA+so.rateB)/2;
     const annInt2=totalLoan*avgR2;
+    /* 보유세 재계산 */
+    const av2=totalLandVal||totalBuy*0.7;
+    const tb2=av2*0.6; const rpt2=tb2*0.0025+tb2*0.004;
+    const apt2=rpt2*(1+0.14+0.20);
     const cfs2=[-eq2];
     for(let yr=1;yr<=so.holdYrs;yr++){
-      cfs2.push(totalRent*12*Math.pow(1+so.rentUp,yr-1)*(1-so.vacancy)-annInt2);
+      cfs2.push(totalRent*12*Math.pow(1+so.rentUp,yr-1)*(1-so.vacancy)-annInt2-apt2);
     }
     const pfInt2=pfL2*so.pfRate;
     cfs2.push(-(constTotal2-pfL2));
@@ -1606,7 +1646,7 @@ function irrCalcRun(){
     const exitN2=exitV2-pfL2+so.newDep;
     const cfNew2=[];
     for(let yr=1;yr<=Math.max(1,Math.round(nlYrs2));yr++){
-      cfNew2.push(S.newRent*12*Math.pow(1+so.rentUp,yr-1)*(1-so.newVacancy)-pfInt2);
+      cfNew2.push(S.newRent*12*Math.pow(1+so.rentUp,yr-1)*(1-so.newVacancy)-pfInt2-apt2);
     }
     cfNew2.forEach(v=>cfs2.push(v));
     cfs2[cfs2.length-1]=(cfs2[cfs2.length-1]||0)+exitN2;
@@ -1619,27 +1659,54 @@ function irrCalcRun(){
   /* 금리×시세 IRR 테이블 */
   function buildSensTable(rowSteps,colSteps,rowKey,colKey,rowLabel,colLabel,rowFmt,colFmt){
     const irrMin=-0.05,irrMed=0.05,irrHigh=0.12;
-    function irrCell(v){
-      if(v===null) return`<td style="text-align:center;color:var(--t4);font-size:10px">—</td>`;
+    function irrCell(v,isCurrentRow,isCurrentCol){
+      const highlight=isCurrentRow&&isCurrentCol;
+      if(v===null) return`<td style="text-align:center;color:var(--t4);font-size:10px;padding:7px 10px;border:1px solid rgba(42,48,80,.35)">—</td>`;
       const pct=(v*100).toFixed(1)+'%';
-      const bg=v<irrMin?'rgba(240,56,96,.15)':v<irrMed?'rgba(245,188,48,.1)':v<irrHigh?'rgba(34,209,134,.1)':'rgba(34,209,134,.22)';
-      const tc=v<irrMin?'var(--red)':v<irrMed?'var(--yellow)':v<irrHigh?'var(--green)':'#00ff99';
-      return`<td style="text-align:center;background:${bg};font-family:var(--mono);font-size:11px;color:${tc};font-weight:600;padding:6px 8px">${pct}</td>`;
+      let bg,tc,bord;
+      if(v<irrMin){       bg='rgba(240,56,96,.22)'; tc='#ff6b6b'; bord='rgba(240,56,96,.4)';}
+      else if(v<0){       bg='rgba(240,56,96,.12)'; tc='#e84040'; bord='rgba(240,56,96,.25)';}
+      else if(v<irrMed){  bg='rgba(245,188,48,.14)';tc='#f5bc30'; bord='rgba(245,188,48,.3)';}
+      else if(v<irrHigh){ bg='rgba(34,209,134,.14)';tc='#22d186'; bord='rgba(34,209,134,.3)';}
+      else{               bg='rgba(34,209,134,.25)';tc='#00ff9d'; bord='rgba(34,209,134,.5)';}
+      const ring=highlight?`box-shadow:inset 0 0 0 2px ${bord};`:'';
+      return`<td style="text-align:center;background:${bg};border:1px solid ${bord};
+        font-family:var(--mono);font-size:11.5px;color:${tc};font-weight:700;
+        padding:7px 10px;${ring}">${pct}</td>`;
     }
+    /* 현재 S값에서 가장 가까운 row/col 인덱스 찾기 */
+    const curRowVal=S[rowKey],curColVal=S[colKey];
+    const nearRow=rowSteps.reduce((bi,v,i)=>Math.abs(v-curRowVal)<Math.abs(rowSteps[bi]-curRowVal)?i:bi,0);
+    const nearCol=colSteps.reduce((bi,v,i)=>Math.abs(v-curColVal)<Math.abs(colSteps[bi]-curColVal)?i:bi,0);
+
     let html=`<table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr>
-        <th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);background:var(--s2);white-space:nowrap">${rowLabel} \\ ${colLabel}</th>
-        ${colSteps.map(c=>`<th style="padding:6px 8px;text-align:center;font-size:9px;color:var(--t3);background:var(--s2)">${colFmt(c)}</th>`).join('')}
-      </tr></thead><tbody>`;
-    rowSteps.forEach(rv=>{
-      html+=`<tr><td style="padding:6px 10px;font-family:var(--mono);font-size:10px;color:var(--t2);white-space:nowrap;background:var(--s2)">${rowFmt(rv)}</td>`;
-      colSteps.forEach(cv=>{
+      <thead>
+        <tr style="background:var(--s3)">
+          <th style="padding:8px 12px;text-align:left;font-size:10px;color:#8890aa;background:var(--s3);
+            white-space:nowrap;border:1px solid var(--border2);font-weight:600;letter-spacing:.5px">
+            ${rowLabel} ╲ ${colLabel}
+          </th>
+          ${colSteps.map((c,ci)=>`<th style="padding:8px 10px;text-align:center;font-size:10px;
+            color:${ci===nearCol?'var(--t1)':'#8890aa'};background:${ci===nearCol?'rgba(59,127,255,.12)':'var(--s3)'};
+            border:1px solid ${ci===nearCol?'rgba(59,127,255,.3)':'var(--border2)'};font-weight:600">
+            ${colFmt(c)}
+          </th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+    rowSteps.forEach((rv,ri)=>{
+      html+=`<tr>
+        <td style="padding:8px 12px;font-family:var(--mono);font-size:10.5px;font-weight:600;
+          color:${ri===nearRow?'var(--t1)':'#8890aa'};white-space:nowrap;
+          background:${ri===nearRow?'rgba(59,127,255,.08)':'var(--s2)'};
+          border:1px solid ${ri===nearRow?'rgba(59,127,255,.25)':'var(--border2)'}">${rowFmt(rv)}</td>`;
+      colSteps.forEach((cv,ci)=>{
         const ov={[rowKey]:rv,[colKey]:cv};
-        html+=irrCell(calcSensIRR(ov));
+        html+=irrCell(calcSensIRR(ov),ri===nearRow,ci===nearCol);
       });
       html+='</tr>';
     });
-    html+='</tbody></table>';
+    html+=`</tbody></table>`;
     return html;
   }
 
@@ -1690,26 +1757,29 @@ function irrCalcRun(){
   const cfTblHTML=cfTableRows.map(r=>{
     const isInvest=r.stage==='초기투자';
     const stageColor={'초기투자':'var(--red)','임대보유':'var(--blue)','공사기간':'var(--yellow)','신축운영':'var(--green)'}[r.stage]||'var(--t3)';
-    return`<tr>
-      <td style="padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--t2)">${r.yr}</td>
-      <td style="padding:8px 12px">
+    const c=(v,color,prefix='')=>v>0
+      ?`<span style="color:${color};font-family:var(--mono);font-size:11px">${prefix}${fmtBig(v)}</span>`
+      :`<span style="color:var(--t4)">—</span>`;
+    return`<tr style="border-bottom:1px solid rgba(34,38,54,.5)">
+      <td style="padding:7px 12px;font-family:var(--mono);font-size:11px;color:var(--t2);white-space:nowrap">${r.yr}년</td>
+      <td style="padding:7px 12px">
         <span style="display:inline-block;padding:1px 8px;border-radius:20px;font-size:9.5px;font-weight:600;
           background:${stageColor}22;color:${stageColor};border:1px solid ${stageColor}44">${r.stage}</span>
       </td>
-      <td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:11px">
-        ${r.rent>0?`<span style="color:var(--green)">${fmtBig(r.rent)}</span>`:'<span style="color:var(--t4)">—</span>'}
-      </td>
-      <td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:11px">
-        ${r.interest>0?`<span style="color:var(--red)">${fmtBig(r.interest)}</span>`:'<span style="color:var(--t4)">—</span>'}
-      </td>
-      <td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:11px">
-        ${r.constCost>0?`<span style="color:var(--red)">${fmtBig(r.constCost)}</span>`:'<span style="color:var(--t4)">—</span>'}
-      </td>
-      <td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:600">
+      <td style="padding:7px 12px;text-align:right">${c(r.rent,'var(--green)')}</td>
+      <td style="padding:7px 12px;text-align:right">${c(r.acqInterest,'var(--red)')}</td>
+      <td style="padding:7px 12px;text-align:right">${c(r.pfInterest,'#f07830')}</td>
+      <td style="padding:7px 12px;text-align:right">${c(r.propTax,'var(--yellow)')}</td>
+      <td style="padding:7px 12px;text-align:right">${c(r.constCost,'var(--red)')}</td>
+      <td style="padding:7px 12px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700">
         <span style="color:${r.net>=0?'var(--green)':'var(--red)'}">${r.net>=0?'+':''}${fmtBig(r.net)}</span>
       </td>
-      <td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--t3)">
+      <td style="padding:7px 12px;text-align:right;font-family:var(--mono);font-size:11px;
+        color:${r.cum>=0?'#6b7899':'var(--red)'}">
         ${r.cum>=0?'+':''}${fmtBig(r.cum)}
+      </td>
+      <td style="padding:7px 12px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--blue)">
+        ${r.assetVal?fmtBig(r.assetVal):'—'}
       </td>
     </tr>`;
   }).join('');
@@ -1726,11 +1796,11 @@ function irrCalcRun(){
 
   /* ── 투자구조 / EXIT 카드 행 빌더 ── */
   const invRow=(lbl,val,c)=>{
-    const col={'red':'var(--red)','green':'var(--green)','blue':'var(--blue)','yellow':'var(--yellow)'}[c]||'var(--t2)';
+    const col={'red':'var(--red)','green':'var(--green)','blue':'var(--blue)','yellow':'var(--yellow)'}[c]||'#8890aa';
     return`<div style="display:flex;justify-content:space-between;align-items:center;
       padding:6px 0;border-bottom:1px solid rgba(34,38,54,.4);font-size:12px">
-      <span style="color:var(--t3)">${lbl}</span>
-      <span style="font-family:var(--mono);font-size:12.5px;font-weight:500;color:${col}">${val}</span>
+      <span style="color:#8890aa;font-weight:500">${lbl}</span>
+      <span style="font-family:var(--mono);font-size:12.5px;font-weight:600;color:${col}">${val}</span>
     </div>`;
   };
 
@@ -1826,7 +1896,7 @@ function irrCalcRun(){
 
       <!-- 좌: 투자 구조 -->
       <div style="padding:16px 18px;border-right:1px solid var(--border)">
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">📥 투자 구조</div>
+        <div style="font-size:10px;color:#8890aa;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">📥 투자 구조</div>
         ${invRow('총 매입가',fmtBig(totalBuy)+'원','red')}
         ${invRow('├ 취득세',fmtBig(acqTaxAmt)+`원 (${(S.acqTax*100).toFixed(1)}%)`,'yellow')}
         ${invRow('├ 매입 대출',fmtBig(totalLoan)+'원','blue')}
@@ -1835,7 +1905,7 @@ function irrCalcRun(){
         ${invRow('LTV',`${(ltv*100).toFixed(1)}%`,ltv>0.7?'red':'green')}
         ${invRow('연간 이자 비용',fmtBig(annualInterest)+'원','red')}
         ${invRow('연간 임대 수익',fmtBig(totalRent*12)+'원','green')}
-        ${invRow('보유세 추정',fmtBig(annualPropTax)+'원/년','yellow')}
+        ${invRow('보유세 (재산세+도시분+교육세)',fmtBig(annualPropTax)+'원/년','yellow')}
         <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
           ${invRow('신축 공사비',fmtBig(constTotalCost)+'원','red')}
           ${invRow('├ PF 대출',fmtBig(pfLoan)+`원 (${(S.pfRatio*100).toFixed(0)}%)`,'blue')}
@@ -1846,7 +1916,7 @@ function irrCalcRun(){
 
       <!-- 우: EXIT -->
       <div style="padding:16px 18px">
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">📤 EXIT 분석</div>
+        <div style="font-size:10px;color:#8890aa;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">📤 EXIT 분석</div>
         ${invRow('예상 자산가치',fmtBig(exitVal)+'원','green')}
         ${invRow('├ 신축 공사비',fmtBig(constTotalCost)+'원','red')}
         ${invRow('├ 양도차익',fmtBig(Math.max(0,capitalGain))+'원','green')}
@@ -1874,18 +1944,21 @@ function irrCalcRun(){
 
   <!-- ④ 연도별 캐시플로우 테이블 ───────────────────────── -->
   <div style="margin-top:16px">
-    ${secHead('var(--orange)','📋 연도별 캐시플로우','IRR 계산에 사용된 실제 흐름')}
+    ${secHead('var(--orange)','📋 연도별 캐시플로우','시트 기초 데이터 + 조정값 기반 자동 계산')}
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:var(--s2);border-bottom:2px solid var(--border2)">
-            <th style="padding:9px 12px;text-align:left;font-size:9.5px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap">연도</th>
-            <th style="padding:9px 12px;text-align:left;font-size:9.5px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px">단계</th>
+            <th style="padding:9px 12px;text-align:left;font-size:9.5px;color:#8890aa;font-weight:600;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap">연도</th>
+            <th style="padding:9px 12px;text-align:left;font-size:9.5px;color:#8890aa;font-weight:600;text-transform:uppercase;letter-spacing:.8px">단계</th>
             <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--green);font-weight:600;text-transform:uppercase">임대수익</th>
-            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--red);font-weight:600;text-transform:uppercase">이자비용</th>
+            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--red);font-weight:600;text-transform:uppercase">매입이자</th>
+            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:#f07830;font-weight:600;text-transform:uppercase">PF이자</th>
+            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--yellow);font-weight:600;text-transform:uppercase">보유세</th>
             <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--red);font-weight:600;text-transform:uppercase">건축비</th>
-            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--blue);font-weight:600;text-transform:uppercase;letter-spacing:.6px">순현금흐름</th>
-            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--t3);font-weight:600;text-transform:uppercase">누적</th>
+            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--blue);font-weight:600;text-transform:uppercase;letter-spacing:.6px">순 CF</th>
+            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:#8890aa;font-weight:600;text-transform:uppercase">누적</th>
+            <th style="padding:9px 12px;text-align:right;font-size:9.5px;color:var(--blue);font-weight:600;text-transform:uppercase">자산가치</th>
           </tr>
         </thead>
         <tbody style="border-bottom:1px solid var(--border)">
@@ -1900,10 +1973,24 @@ function irrCalcRun(){
   <div style="margin-top:16px">
     ${secHead('var(--yellow)','🎯 민감도 분석','IRR 변화 · 빨강=낮음 / 노랑=보통 / 초록=양호')}
     <div style="padding:16px 18px">
-      <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:8px">금리 × 시세상승률</div>
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px">${sensTable1}</div>
-      <div style="font-size:11px;font-weight:600;color:var(--t2);margin-top:16px;margin-bottom:8px">가치배수 × 시세상승률</div>
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px">${sensTable2}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--t1);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <span style="display:inline-block;width:3px;height:14px;border-radius:2px;background:var(--red)"></span>
+        금리 × 시세상승률
+        <span style="font-size:9.5px;color:#6b7899;font-weight:400;margin-left:4px">현재값 강조 표시</span>
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--border2);border-radius:7px;background:var(--s2)">${sensTable1}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--t1);margin-top:20px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <span style="display:inline-block;width:3px;height:14px;border-radius:2px;background:var(--purple)"></span>
+        가치배수 × 시세상승률
+        <span style="font-size:9.5px;color:#6b7899;font-weight:400;margin-left:4px">현재값 강조 표시</span>
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--border2);border-radius:7px;background:var(--s2)">${sensTable2}</div>
+      <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;font-size:10px">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:2px;background:rgba(240,56,96,.22);display:inline-block;border:1px solid rgba(240,56,96,.4)"></span><span style="color:#8890aa">IRR &lt; -5% (위험)</span></span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:2px;background:rgba(245,188,48,.14);display:inline-block;border:1px solid rgba(245,188,48,.3)"></span><span style="color:#8890aa">0% ~ 5% (보통)</span></span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:2px;background:rgba(34,209,134,.14);display:inline-block;border:1px solid rgba(34,209,134,.3)"></span><span style="color:#8890aa">5% ~ 12% (양호)</span></span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:2px;background:rgba(34,209,134,.25);display:inline-block;border:1px solid rgba(34,209,134,.5)"></span><span style="color:#8890aa">12%+ (우수)</span></span>
+      </div>
     </div>
     </div><!-- 섹션 닫기 -->
   </div>
