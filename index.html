@@ -3110,16 +3110,71 @@ function renderCorp(rows){
      같은 카테고리(getCat 기준) 내에서
      totalIdx 행의 금액이 다른 행들의 금액 합계와 근사하면 부모로 간주 */
   function getCat(r){
-    const c=(sv(r,catIdx)||sv(r,itemIdx)||'').trim();
-    if(!c)return '기타';
-    if(/설계/.test(c))     return '설계비';
-    if(/감리/.test(c))     return '감리비';
-    if(/공사|시공|건축|인테리어/.test(c)) return '공사비';
-    if(/토지.*임대|토지료|지대/.test(c))  return '토지임대료';
-    if(/대출|이자|금융/.test(c))          return '금융비용';
-    if(/세금|취득|등록|인지/.test(c))     return '세금·공과금';
-    return c;
+    const raw=(sv(r,catIdx)||sv(r,itemIdx)||sv(r,stageIdx)||'').trim();
+    const c=raw.toLowerCase();
+    /* 세부 분류 → 요청 그룹명으로 통합 */
+    if(/토지.*임대|토지료|지대/.test(c))          return '토지임대료';
+    if(/신축.*공사|공사비|시공/.test(c))           return '공사비';
+    if(/해체.*공사/.test(c))                       return '공사비';
+    if(/감리/.test(c))                             return '감리비';
+    if(/설계|측량|지반|굴토|해체.*심의|해체.*허가|해체.*신고|지하.*안전/.test(c)) return '설계비';
+    if(/면허세|채권|경계복원/.test(c))             return '설계비'; /* 요약에서 설계비 그룹으로 */
+    if(/대출|이자|금융/.test(c))                   return '금융비용';
+    if(/세금|취득|등록|인지/.test(c))              return '세금·공과금';
+    return raw||'기타';
   }
+
+  /* 요약 표시 대상 핵심 항목 — 항목명 기반 분류 */
+  function getSummaryGroup(r){
+    const item=(sv(r,itemIdx)||sv(r,catIdx)||'').trim().toLowerCase();
+    if(/건축.*설계/.test(item))                         return '건축설계비';
+    if(/토목.*설계|흙막이/.test(item))                  return '토목설계비';
+    if(/해체.*심의|해체.*허가|해체.*신고/.test(item))   return '해체심의·허가·신고';
+    if(/상주.*감리|건축.*감리/.test(item))               return '상주 감리비';
+    if(/해체.*감리|지상.*감리/.test(item))               return '해체 감리비';
+    if(/면허세|채권/.test(item))                        return '면허세·채권매입';
+    if(/경계복원/.test(item))                           return '경계복원측량';
+    if(/토지.*임대|토지료/.test(item))                  return '토지임대료';
+    if(/신축.*공사/.test(item))                         return '신축공사비';
+    if(/해체.*공사/.test(item))                         return '해체공사비';
+    return null; /* 요약에서 제외 */
+  }
+
+  /* 요약용 그룹 집계 */
+  const summaryGroupOrder=['건축설계비','토목설계비','해체심의·허가·신고','상주 감리비','해체 감리비','면허세·채권매입','경계복원측량','토지임대료','해체공사비','신축공사비'];
+  const summaryGroupMap=new Map();
+  summaryGroupOrder.forEach(g=>summaryGroupMap.set(g,{total:0,rows:[]}));
+
+  leafData.forEach(r=>{
+    const g=getSummaryGroup(r);
+    if(!g) return;
+    if(!summaryGroupMap.has(g)) summaryGroupMap.set(g,{total:0,rows:[]});
+    summaryGroupMap.get(g).total+=getTotal(r);
+    summaryGroupMap.get(g).rows.push(r);
+  });
+
+  /* 요약표 행 — 존재하는 그룹만 */
+  const summaryRows=summaryGroupOrder
+    .filter(g=>summaryGroupMap.get(g)&&summaryGroupMap.get(g).total>0)
+    .map(g=>{
+      const {total,rows}=summaryGroupMap.get(g);
+      /* 기간 요약 */
+      const drs=rows.map(r=>getDateRange(r)).filter(d=>d.hasStart);
+      let periodSummary='—';
+      if(drs.length>0){
+        const minS=drs.reduce((a,d)=>d.sy*100+d.sm<a.sy*100+a.sm?d:a,drs[0]);
+        const maxE=drs.filter(d=>d.hasEnd).reduce((a,d)=>d.ey*100+d.em>a.ey*100+a.em?d:a,{ey:0,em:0});
+        periodSummary=`${minS.sy}.${String(minS.sm).padStart(2,'0')}${maxE.ey>0?' ~ '+maxE.ey+'.'+String(maxE.em).padStart(2,'0'):'~'}`;
+      }
+      return`<tr>
+        <td class="label" style="color:#c9d1e8">${g}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:#8890aa">${periodSummary}</td>
+        <td class="r"><span class="exp" style="font-weight:600">${fmtBig(total)}원</span></td>
+      </tr>`;
+    }).join('');
+
+  /* 요약 합계 (핵심 항목만) */
+  const summaryTotal=[...summaryGroupMap.values()].reduce((a,v)=>a+v.total,0);
 
   /* ══ [납부방법 상세 파싱] ══════════════════════════════════
      납부방법 상세 컬럼 우선 → 납부방법 컬럼 → 기본값
@@ -3493,27 +3548,27 @@ function renderCorp(rows){
   const catKpiHTML=topCats.map((cat,i)=>{
     const colors=['r','p','o'];
     return`<div class="kpi ${colors[i]||'b'}">
-      <div class="kpi-lbl">${cat}</div>
+      <div class="kpi-lbl" style="color:#e5e7eb">${cat}</div>
       <div class="kpi-val" style="color:var(--red)">${fmtBig(catTotals.get(cat))}원</div>
-      <div class="kpi-sub">${catMap.get(cat).length}건</div>
+      <div class="kpi-sub" style="color:#9ca3af">${catMap.get(cat).length}건</div>
     </div>`;
   }).join('');
 
   const kpiHTML=`<div class="kpi-row">
     <div class="kpi b">
-      <div class="kpi-lbl">총 법인비용</div>
+      <div class="kpi-lbl" style="color:#e5e7eb">총 법인비용</div>
       <div class="kpi-val" style="color:var(--red)">${fmtBig(grandTotal)}원</div>
-      <div class="kpi-sub">${totalItems}건 · ${catOrder.length}개 카테고리</div>
+      <div class="kpi-sub" style="color:#9ca3af">${totalItems}건 · ${catOrder.length}개 카테고리</div>
     </div>
     <div class="kpi g">
-      <div class="kpi-lbl">평균 월 지출</div>
+      <div class="kpi-lbl" style="color:#e5e7eb">평균 월 지출</div>
       <div class="kpi-val">${fmtBig(avgMonthly)}원</div>
-      <div class="kpi-sub">지출 발생 ${nonZeroMonths}개월 기준</div>
+      <div class="kpi-sub" style="color:#9ca3af">지출 발생 ${nonZeroMonths}개월 기준</div>
     </div>
     ${maxMonth.total>0?`<div class="kpi y">
-      <div class="kpi-lbl">최대 지출 월</div>
+      <div class="kpi-lbl" style="color:#e5e7eb">최대 지출 월</div>
       <div class="kpi-val">${maxMonth.y}.${String(maxMonth.m).padStart(2,'0')}</div>
-      <div class="kpi-sub">${fmtBig(maxMonth.total)}원</div>
+      <div class="kpi-sub" style="color:#9ca3af">${fmtBig(maxMonth.total)}원</div>
     </div>`:''}
     ${catKpiHTML}
   </div>`;
@@ -3554,21 +3609,19 @@ function renderCorp(rows){
     <div class="cf-section-head">
       <div class="cf-section-bar" style="background:#4F7CFF"></div>
       <div class="cf-section-title">카테고리별 요약</div>
-      <div class="cf-section-sub">${catOrder.length}개 카테고리 · 총 ${fmtBig(grandTotal)}원</div>
+      <div class="cf-section-sub">핵심 항목 · 총 ${fmtBig(grandTotal)}원</div>
     </div>
     <div class="cf-table-wrap"><div style="overflow-x:auto">
       <table class="cf-table">
         <thead><tr>
-          <th>카테고리</th>
+          <th>항목</th>
           <th>기간</th>
-          <th>납부방법</th>
-          <th class="r">건수</th>
-          <th class="r">총액</th>
+          <th class="r">금액</th>
         </tr></thead>
         <tbody>
-          ${summaryRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--t4)">데이터 없음</td></tr>'}
+          ${summaryRows||'<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--t4)">데이터 없음</td></tr>'}
           <tr class="subtotal-row">
-            <td colspan="4" style="font-weight:700">합 계</td>
+            <td colspan="2" style="font-weight:700">합 계</td>
             <td class="r"><span class="exp" style="font-weight:700">${fmtBig(grandTotal)}원</span></td>
           </tr>
         </tbody>
@@ -3576,61 +3629,85 @@ function renderCorp(rows){
     </div></div>
   </div>`;
 
-  /* ══ [섹션 2] 항목별 상세표 (Leaf Node 기준) ════════════ */
-  const itemRows=leafData.map(r=>{
-    const item=sv(r,itemIdx)||sv(r,catIdx)||'(항목없음)';
-    const cat=getCat(r);
-    const total=getTotal(r);
-    const dr=getDateRange(r);
-    const period=getPeriod(r);
-    /* 기간 표시: 파싱된 날짜 사용 (원본 셀 값 직접 사용 금지) */
-    let periodStr='—';
-    if(dr.hasStart&&dr.hasEnd){
-      periodStr=`${dr.sy}.${String(dr.sm).padStart(2,'0')} ~ ${dr.ey}.${String(dr.em).padStart(2,'0')}`;
-      if(period>1) periodStr+=` (${period}개월)`;
-    } else if(dr.hasStart){
-      periodStr=`${dr.sy}.${String(dr.sm).padStart(2,'0')} ~`;
-      if(period>1) periodStr+=` ${period}개월`;
-    } else if(period>1){
-      periodStr=`${period}개월`;
-    }
-    const sched=getPaySchedule(r);
-    /* 납부방법 표시 */
-    let methodLabel='매월';
-    if(sched.type==='dates')        methodLabel=`${sched.dates.length}회 분할`;
-    else if(sched.type==='lump')    methodLabel='일시납'+(sched.ym?` (${sched.ym.y}.${String(sched.ym.m).padStart(2,'0')})` :'');
-    else if(sched.type==='installment') methodLabel=`${sched.count}회 분할`;
-    else if(sched.type==='range')   methodLabel='기간납부';
-    /* 납부방법 상세 원문 */
-    const detStr=sv(r,methodDetIdx);
-    const detDisp=(detStr&&detStr!==methodLabel&&detStr!=='—'&&detStr!=='-')
-      ?`<span style="color:var(--t4);font-size:10px;display:block;margin-top:2px">${detStr}</span>`:'';
-    const note=sv(r,noteIdx);
-    return`<tr>
-      <td class="label">${item}${note?`<span style="color:var(--t4);font-size:10px;margin-left:6px">${note}</span>`:''}</td>
-      <td style="font-size:11px;color:var(--t3)">${cat}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--t3)">${periodStr}</td>
-      <td style="font-size:11px;color:var(--t2)">${methodLabel}${detDisp}</td>
-      <td class="r"><span class="exp">${total?fmtBig(total)+'원':'—'}</span></td>
-    </tr>`;
-  }).join('');
+  /* 상세 그룹 정의 */
+  const DETAIL_GROUPS=[
+    {label:'🏗️ 건축 & 토목 설계비', test:r=>{
+      const it=(sv(r,itemIdx)||sv(r,catIdx)||'').toLowerCase();
+      return /설계|측량|지반|굴토|해체.*심의|해체.*허가|해체.*신고|지하.*안전|면허세|채권|경계복원/.test(it);
+    }},
+    {label:'👷 감리비', test:r=>{
+      const it=(sv(r,itemIdx)||sv(r,catIdx)||'').toLowerCase();
+      return /감리/.test(it);
+    }},
+    {label:'🏢 공사비', test:r=>{
+      const it=(sv(r,itemIdx)||sv(r,catIdx)||'').toLowerCase();
+      return /공사|시공/.test(it);
+    }},
+    {label:'🏛️ 토지임대료', test:r=>{
+      const it=(sv(r,itemIdx)||sv(r,catIdx)||'').toLowerCase();
+      return /토지.*임대|토지료|지대/.test(it);
+    }},
+  ];
+
+  function buildDetailGroup(groupLabel, groupRows){
+    if(!groupRows.length) return '';
+    const rows=groupRows.map(r=>{
+      const item=sv(r,itemIdx)||sv(r,catIdx)||'(항목없음)';
+      const total=getTotal(r);
+      const dr=getDateRange(r);
+      const period=getPeriod(r);
+      let periodStr='—';
+      if(dr.hasStart&&dr.hasEnd){
+        periodStr=`${dr.sy}.${String(dr.sm).padStart(2,'0')} ~ ${dr.ey}.${String(dr.em).padStart(2,'0')}`;
+      } else if(dr.hasStart){
+        periodStr=`${dr.sy}.${String(dr.sm).padStart(2,'0')} ~`;
+      }
+      const soyo=period>1?`${period}개월`:'—';
+      return`<tr>
+        <td class="label" style="padding-left:20px;color:#c9d1e8">${item}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:#8890aa">${periodStr}</td>
+        <td style="font-size:11px;color:#8890aa;text-align:center">${soyo}</td>
+        <td class="r"><span class="exp">${total?fmtBig(total)+'원':'—'}</span></td>
+      </tr>`;
+    }).join('');
+    const groupTotal=groupRows.reduce((a,r)=>a+getTotal(r),0);
+    return`<tr class="yr-group"><td colspan="4" style="font-weight:700;letter-spacing:.3px">${groupLabel}</td></tr>
+      ${rows}
+      <tr class="yr-total">
+        <td colspan="3" style="font-size:11px">소 계</td>
+        <td class="r"><span class="exp" style="font-size:11px">${fmtBig(groupTotal)}원</span></td>
+      </tr>`;
+  }
+
+  /* 그룹별 분류 */
+  const assignedIdx=new Set();
+  const groupedRows=DETAIL_GROUPS.map(g=>{
+    const matched=leafData.filter((r,i)=>!assignedIdx.has(i)&&g.test(r));
+    matched.forEach(r=>assignedIdx.add(leafData.indexOf(r)));
+    return{label:g.label,rows:matched};
+  });
+  /* 미분류 항목 */
+  const unassigned=leafData.filter((_,i)=>!assignedIdx.has(i));
+
+  const itemBodyHTML=groupedRows.map(g=>buildDetailGroup(g.label,g.rows)).join('')
+    +(unassigned.length?buildDetailGroup('기타',unassigned):'');
 
   const itemHTML=`<div class="cf-section">
     <div class="cf-section-head">
       <div class="cf-section-bar" style="background:var(--red)"></div>
-      <div class="cf-section-title">항목별 상세 <span style="font-size:10px;font-weight:400;color:var(--t4)">(Leaf Node 기준 · 합계행 제외)</span></div>
-      <div class="cf-section-sub">${leafData.length}건</div>
+      <div class="cf-section-title">항목별 상세</div>
+      <div class="cf-section-sub">${leafData.length}건 · 그룹별 구성</div>
     </div>
     <div class="cf-table-wrap"><div style="overflow-x:auto">
       <table class="cf-table">
         <thead><tr>
-          <th>항목</th><th>카테고리</th><th>기간</th>
-          <th>납부방법</th><th class="r">총액</th>
+          <th>항목</th><th>계약기간</th><th style="text-align:center">소요기간</th>
+          <th class="r">금액</th>
         </tr></thead>
         <tbody>
-          ${itemRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--t4)">항목 없음</td></tr>'}
+          ${itemBodyHTML||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--t4)">항목 없음</td></tr>'}
           <tr class="subtotal-row">
-            <td colspan="4" style="font-weight:700">합 계 (Leaf Node)</td>
+            <td colspan="3" style="font-weight:700">합 계</td>
             <td class="r"><span class="exp" style="font-weight:700">${fmtBig(grandTotal)}원</span></td>
           </tr>
         </tbody>
@@ -3706,13 +3783,13 @@ function renderCorp(rows){
       <table class="cf-table">
         <thead>
           <tr>
-            <th rowspan="2">연월</th>
+            <th rowspan="2" style="color:#8890aa">연월</th>
             ${activeCats.length?`<th colspan="${activeCats.length}" style="text-align:center;color:var(--red);border-bottom:2px solid var(--red);background:rgba(240,56,96,.05)">📤 비용 항목별</th>`:''}
             <th rowspan="2" class="r" style="color:var(--red)">월 합계</th>
             <th rowspan="2" class="r" style="color:var(--blue)">누적</th>
           </tr>
           <tr>
-            ${activeCats.map(cat=>`<th class="r" style="color:var(--red);font-size:9.5px;background:rgba(240,56,96,.04)">${cat}</th>`).join('')}
+            ${activeCats.map(cat=>`<th class="r" style="color:#e5e7eb;font-size:9.5px;background:rgba(240,56,96,.04)">${cat}</th>`).join('')}
           </tr>
         </thead>
         <tbody>${monthTableHTML||'<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--t4)">월별 배분 데이터 없음 — 시트에 시작일/종료일 또는 기간을 입력해주세요</td></tr>'}</tbody>
@@ -3729,7 +3806,7 @@ function renderCorp(rows){
     </div>
   </div>`;
 
-  /* ══ [원본 데이터] 접기/펼치기 ══════════════════════════ */
+  /* ══ [원본 데이터] 숨김 처리 (내부 연동 유지, UI 비노출) ══ */
   CACHE['corp_cfn']=null;
   initTS('corp');TS['corp']={search:'',sortCol:-1,sortAsc:true,page:1};
 
@@ -3739,19 +3816,7 @@ function renderCorp(rows){
     ${summaryHTML}
     ${itemHTML}
     ${monthHTML}
-    <div class="cf-section" style="margin-bottom:0">
-      <div class="cf-section-head" style="cursor:pointer;user-select:none"
-        onclick="var b=document.getElementById('corp-raw');b.style.display=b.style.display==='none'?'block':'none';this.querySelector('.raw-toggle').textContent=b.style.display==='none'?'▶ 펼치기':'▼ 접기'">
-        <div class="cf-section-bar" style="background:var(--t4)"></div>
-        <div class="cf-section-title" style="color:var(--t3)">원본 데이터
-          <span class="raw-toggle" style="font-size:11px;font-weight:400;color:var(--t4);margin-left:6px">▶ 펼치기</span>
-        </div>
-        <div class="cf-section-sub">${data.length}건 (전체) / Leaf Node ${leafData.length}건 · 클릭하여 열기</div>
-      </div>
-      <div id="corp-raw" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r)">
-        <div id="corp-tbl"></div>
-      </div>
-    </div>`;
+    <div id="corp-raw" style="display:none"><div id="corp-tbl"></div></div>`;
   drawTable('corp',rows,'corp-tbl');
 }
 
