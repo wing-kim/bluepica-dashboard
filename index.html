@@ -2470,10 +2470,11 @@ function renderCost(k,rows){
 }
 
 /* ════════════════════════════════════════════════════════════
-   renderCorp — 법인비용 Cash Flow 전용 렌더러
+   renderCorp — 법인비용 Cash Flow 전용 렌더러 (v2)
    ★ 시트 컬럼 자동 탐색 (하드코딩 없음)
-   ★ 납부방법(매월/n회 분할/일시) 반영
-   ★ 카테고리별 요약 + 월별 상세
+   ★ Leaf Node 기준 총액 합산 (부모+자식 중복 방지)
+   ★ 납부방법 상세(상세일자 / 매월 / n회 분할 / 일시납) 파싱
+   ★ 개인비용 탭과 동일한 UX 구조 (KPI + 요약 + 월별 캐시플로우)
 ════════════════════════════════════════════════════════════ */
 function renderCorp(rows){
   const sec=document.getElementById('sec-corp');
@@ -2482,138 +2483,296 @@ function renderCorp(rows){
   const hdr=rows[hi];
   const data=rows.slice(hi+1).filter(r=>r.some(c=>c));
 
-  /* ══ [데이터 레이어] 컬럼 자동 탐색 ════════════════════════
-     ★ 시트 컬럼명이 다양할 수 있으므로 광범위 패턴 사용
-     ★ 절대 하드코딩 없음 — 시트 헤더 기반으로만 탐색
-  ════════════════════════════════════════════════════════════ */
-  const itemIdx  =hdr.findIndex(h=>/항목|내용|내역|name|item|비목/i.test(h));
-  const catIdx   =hdr.findIndex(h=>/카테고리|category|구분|분류|대분류|유형/i.test(h));
-  const amtIdx   =hdr.findIndex(h=>/금액(?!합)|월금액|단가|amount|cost(?!total)/i.test(h));
-  const totalIdx =hdr.findIndex(h=>/총액|합계|total|sum|총계/i.test(h));
-  const startIdx =hdr.findIndex(h=>/시작|start|from|착공|착수|계약시작/i.test(h));
-  const endIdx   =hdr.findIndex(h=>/종료|end|to|완료|계약종료|납부종료/i.test(h));
-  const periodIdx=hdr.findIndex(h=>/기간|period|개월|months/i.test(h));
-  const methodIdx=hdr.findIndex(h=>/납부.*방법|지급.*방법|방법|payment|분할|schedule/i.test(h));
-  const countIdx =hdr.findIndex(h=>/횟수|회차|분할수|count|times/i.test(h));
-  const noteIdx  =hdr.findIndex(h=>/비고|메모|note|remark/i.test(h));
-  const stageIdx =hdr.findIndex(h=>/단계|phase|stage|공정/i.test(h));
+  /* ══ [컬럼 자동 탐색] ════════════════════════════════════
+     ★ 시트 헤더 기반 자동 탐색 — 절대 하드코딩 없음
+     ★ 납부방법 상세 컬럼 추가 탐색
+  ════════════════════════════════════════════════════════ */
+  const itemIdx    =hdr.findIndex(h=>/항목|내용|내역|name|item|비목/i.test(h));
+  const catIdx     =hdr.findIndex(h=>/카테고리|category|구분|분류|대분류|유형/i.test(h));
+  const amtIdx     =hdr.findIndex(h=>/금액(?!합)|월금액|단가|amount|cost(?!total)/i.test(h));
+  const totalIdx   =hdr.findIndex(h=>/총액|합계|total|sum|총계/i.test(h));
+  const startIdx   =hdr.findIndex(h=>/시작|start|from|착공|착수|계약시작/i.test(h));
+  const endIdx     =hdr.findIndex(h=>/종료|end|to|완료|계약종료|납부종료/i.test(h));
+  const periodIdx  =hdr.findIndex(h=>/기간|period|개월|months/i.test(h));
+  /* 납부방법 — "납부방법 상세"를 먼저 찾고, "납부방법"은 별도로 */
+  const methodDetIdx =hdr.findIndex(h=>/납부.*방법.*상세|납부.*상세|상세.*납부|payment.*detail/i.test(h));
+  const methodIdx    =hdr.findIndex((h,i)=>i!==methodDetIdx&&/납부.*방법|지급.*방법|납부방법|payment(?!.*detail)/i.test(h));
+  const countIdx   =hdr.findIndex(h=>/횟수|회차|분할수|count|times/i.test(h));
+  const noteIdx    =hdr.findIndex(h=>/비고|메모|note|remark/i.test(h));
+  const stageIdx   =hdr.findIndex(h=>/단계|phase|stage|공정/i.test(h));
+
+  console.log('[법인비용] 헤더 탐색 결과:', {
+    hdr: hdr.slice(0,15),
+    itemIdx, catIdx, amtIdx, totalIdx,
+    startIdx, endIdx, periodIdx,
+    methodIdx, methodDetIdx, countIdx, noteIdx
+  });
 
   /* ══ 헬퍼 ════════════════════════════════════════════════ */
   function sv(r,i){return i>=0?(r[i]||''):'';} 
   function av(r,i){return i>=0?parseAmt(r[i]):0;}
 
-  /* 금액 자동 탐색 — amtIdx/totalIdx 우선, 없으면 0 반환
-     ★ 날짜 셀(YYYYMMDD 형태 8자리 숫자) 오인 방지
-     ★ startIdx/endIdx 열은 절대 금액으로 사용하지 않음 */
-  const DATE_LIKE=/^\d{8}$|^\d{4}[.\-\/]\d{2}/; /* YYYYMMDD 또는 날짜 패턴 */
+  /* 날짜 패턴 방어 */
+  const DATE_LIKE=/^\d{8}$|^\d{4}[.\-\/]\d{2}/;
   function getBestAmt(r){
     if(amtIdx>=0){const v=av(r,amtIdx);if(v)return v;}
     if(totalIdx>=0){const v=av(r,totalIdx);if(v)return v;}
-    /* amtIdx/totalIdx 모두 없을 때만 fallback — 날짜·비고 열 제외 */
-    const skipIdx=new Set([catIdx,itemIdx,startIdx,endIdx,periodIdx,methodIdx,stageIdx,noteIdx].filter(i=>i>=0));
+    const skipIdx=new Set([catIdx,itemIdx,startIdx,endIdx,periodIdx,methodIdx,methodDetIdx,stageIdx,noteIdx].filter(i=>i>=0));
     for(let i=0;i<r.length;i++){
       if(skipIdx.has(i))continue;
       const raw=String(r[i]||'').trim();
-      if(!raw||DATE_LIKE.test(raw))continue; /* 날짜형 스킵 */
+      if(!raw||DATE_LIKE.test(raw))continue;
       const v=parseAmt(raw);
-      if(v>=1000&&v<1e13)return v; /* 1,000원 이상 10조 미만 */
+      if(v>=1000&&v<1e13)return v;
     }
     return 0;
   }
 
-  /* ══ [카테고리] 탐색 — 컬럼 없으면 항목명으로 추정 ══════ */
+  /* ══ [Leaf Node 판별] ════════════════════════════════════
+     규칙:
+     1. "합계", "소계", "계", "합산" 등 합계성 키워드 행 → 제외
+     2. 금액이 0인 행 → 제외
+     3. 자식 항목이 존재하는 부모 행 → 제외
+        (부모 = 다음 행들이 같은 카테고리 하위 항목인 경우)
+     4. 금액이 같은 값이 하위 항목 합산과 일치하는 경우 → 제외
+
+     ★ 핵심 전략:
+       - 합계성 행 키워드 필터 우선 적용
+       - 나머지는 "금액이 없거나 0인 행" 필터
+       - 중복 방지: 같은 카테고리 내 totalIdx 행과 세부 행이 함께 있으면
+         totalIdx값이 세부합산과 일치하는 행을 부모로 간주하여 제외
+  ════════════════════════════════════════════════════════ */
+  const SUMMARY_KW=/^(합계|소계|계$|합산|total|sum|subtotal|grand|전체|총계)/i;
+
+  function isSummaryRow(r){
+    /* 항목명/카테고리 컬럼에 합계성 키워드가 있으면 합계 행 */
+    const name=(sv(r,itemIdx)||sv(r,catIdx)||'').trim();
+    if(SUMMARY_KW.test(name)) return true;
+    /* 모든 셀 검사 — 첫 번째 텍스트 셀이 합계 키워드인 경우 */
+    for(let i=0;i<Math.min(r.length,5);i++){
+      const v=String(r[i]||'').trim();
+      if(v&&SUMMARY_KW.test(v)) return true;
+    }
+    return false;
+  }
+
+  /* 카테고리별 그룹핑 후 Leaf Node 식별
+     같은 카테고리(getCat 기준) 내에서
+     totalIdx 행의 금액이 다른 행들의 금액 합계와 근사하면 부모로 간주 */
   function getCat(r){
     const c=(sv(r,catIdx)||sv(r,itemIdx)||'').trim();
     if(!c)return '기타';
-    /* 주요 법인비용 카테고리 정규화 */
-    if(/설계/.test(c))return '설계비';
-    if(/감리/.test(c))return '감리비';
-    if(/공사|시공|건축|인테리어/.test(c))return '공사비';
-    if(/토지.*임대|토지료|지대/.test(c))return '토지임대료';
-    if(/대출|이자|금융/.test(c))return '금융비용';
-    if(/세금|취득|등록|인지/.test(c))return '세금·공과금';
-    return c; /* 시트 원본값 그대로 사용 */
+    if(/설계/.test(c))     return '설계비';
+    if(/감리/.test(c))     return '감리비';
+    if(/공사|시공|건축|인테리어/.test(c)) return '공사비';
+    if(/토지.*임대|토지료|지대/.test(c))  return '토지임대료';
+    if(/대출|이자|금융/.test(c))          return '금융비용';
+    if(/세금|취득|등록|인지/.test(c))     return '세금·공과금';
+    return c;
   }
 
-  /* ══ [납부 기간/방법] 분석 ════════════════════════════════
-     납부방법 컬럼 → 매월/n회 분할/일시 판별
-  ════════════════════════════════════════════════════════════ */
-  function getPayMethod(r){
-    const m=(sv(r,methodIdx)||'').trim().toLowerCase();
-    if(/매월|monthly|month|월납/.test(m))return'monthly';
+  /* ══ [납부방법 상세 파싱] ══════════════════════════════════
+     납부방법 상세 컬럼 우선 → 납부방법 컬럼 → 기본값
+
+     지원 형식:
+     - "26-05 / 26-09 / 27-03 / 27-08"  → 4회 분할, 해당 월
+     - "매월"                             → 기간 동안 월할
+     - "2030-12-31"                       → 해당 월 일시납
+     - "2026-05-01 ~ 2027-08-31 (16개월)"→ 기간 파싱
+     - "2029.07~2030.12"                  → 기간 파싱
+     - 기본값: 납부방법 컬럼 기반 판별
+  ════════════════════════════════════════════════════════ */
+
+  /* YY-MM 또는 YYYY-MM 형식 → {y, m} */
+  function parseShortYM(s){
+    s=s.trim();
+    /* YYYY-MM-DD or YYYY-MM */
+    const m1=s.match(/^(\d{4})[.\-\/](\d{1,2})/);
+    if(m1)return{y:parseInt(m1[1]),m:parseInt(m1[2])};
+    /* YY-MM (2자리 연도: 26-05 → 2026) */
+    const m2=s.match(/^(\d{2})[.\-\/](\d{2})$/);
+    if(m2){
+      const yr=parseInt(m2[1]);
+      return{y:yr<50?2000+yr:1900+yr,m:parseInt(m2[2])};
+    }
+    return null;
+  }
+
+  /* 납부방법 상세 문자열 → 납부 스케줄 객체 반환
+     반환 타입:
+       {type:'monthly'}                       — 매월
+       {type:'lump', ym:{y,m}}               — 일시납 특정월
+       {type:'dates', dates:[{y,m},...]}      — 분할 특정 월 목록
+       {type:'range', sy,sm,ey,em}           — 기간 범위 (월할)
+       null                                   — 파싱 불가
+  */
+  function parseMethodDetail(detStr){
+    const s=String(detStr||'').trim();
+    if(!s||s==='—'||s==='-') return null;
+
+    /* "매월" */
+    if(/^매월$|^monthly$/i.test(s)) return{type:'monthly'};
+
+    /* "YY-MM / YY-MM / ..." 또는 "YYYY-MM / YYYY-MM / ..." 다중 날짜 */
+    if(/\//.test(s)){
+      const parts=s.split('/').map(p=>p.trim()).filter(Boolean);
+      const dates=parts.map(parseShortYM).filter(Boolean);
+      if(dates.length>=2) return{type:'dates',dates};
+    }
+
+    /* 기간 범위: "YYYY.MM~YYYY.MM" 또는 "YYYY-MM-DD ~ YYYY-MM-DD" */
+    const rng=s.match(/(\d{4})[.\-\/](\d{1,2})[^\d]*[~～–\-]{1,2}[^\d]*(\d{4})[.\-\/](\d{1,2})/);
+    if(rng) return{type:'range',sy:parseInt(rng[1]),sm:parseInt(rng[2]),ey:parseInt(rng[3]),em:parseInt(rng[4])};
+
+    /* 단일 날짜 "2030-12-31" 또는 "2030.12" → 일시납 */
+    const single=parseShortYM(s);
+    if(single) return{type:'lump',ym:single};
+
+    return null;
+  }
+
+  /* 납부방법(기본) 컬럼 파싱 */
+  function parseMethodBase(r){
+    const m=String(sv(r,methodIdx)||'').trim().toLowerCase();
+    if(/매월|monthly|month|월납/.test(m)) return'monthly';
     const n=parseInt(m.replace(/[^0-9]/g,''));
-    if(!isNaN(n)&&n>1)return{type:'installment',count:n};
-    if(/일시|lump|once|전액/.test(m))return'lump';
-    /* countIdx 컬럼으로 판별 */
+    if(!isNaN(n)&&n>1) return{type:'installment',count:n};
+    if(/일시|lump|once|전액/.test(m)) return'lump';
     if(countIdx>=0){
       const cnt=parseInt(String(sv(r,countIdx)).replace(/[^0-9]/g,''));
-      if(!isNaN(cnt)&&cnt>1)return{type:'installment',count:cnt};
-      if(cnt===1)return'lump';
+      if(!isNaN(cnt)&&cnt>1) return{type:'installment',count:cnt};
+      if(cnt===1) return'lump';
     }
-    return'monthly'; /* 기본값: 매월 */
+    return'monthly';
   }
 
-  /* ══ [기간(개월)] ══════════════════════════════════════════
-     ★ periodIdx 명시 → 시작/종료 계산 → 없으면 1개월
-     ★ 시작일만 있고 종료일 없으면 1개월 (임의 추정 금지)
-  ═════════════════════════════════════════════════════════ */
+  /* 최종 납부 스케줄 반환 — 상세 우선, 없으면 기본 */
+  function getPaySchedule(r){
+    const detStr=sv(r,methodDetIdx);
+    const det=parseMethodDetail(detStr);
+    if(det) return det;
+    /* 납부방법 컬럼 기반 */
+    const base=parseMethodBase(r);
+    if(base==='lump') return{type:'lump',ym:null}; /* 특정월 미지정 */
+    if(typeof base==='object'&&base.type==='installment') return{type:'installment',count:base.count};
+    return{type:'monthly'};
+  }
+
+  /* ══ [기간 파싱] ══════════════════════════════════════════ */
   function getPeriod(r){
-    /* 1순위: 기간 컬럼 명시값 */
     if(periodIdx>=0){
       const p=parseInt(String(sv(r,periodIdx)).replace(/[^0-9]/g,''));
-      if(!isNaN(p)&&p>0)return p;
+      if(!isNaN(p)&&p>0) return p;
     }
-    /* 2순위: 시작+종료 모두 있을 때만 계산 */
     if(startIdx>=0&&endIdx>=0){
       const s=sv(r,startIdx).trim(),e=sv(r,endIdx).trim();
       const ms=s.match(/(\d{4})[.\-\/](\d{1,2})/);
       const me=e.match(/(\d{4})[.\-\/](\d{1,2})/);
       if(ms&&me){
         const diff=(parseInt(me[1])-parseInt(ms[1]))*12+(parseInt(me[2])-parseInt(ms[2]));
-        if(diff>=0)return diff+1;
+        if(diff>=0) return diff+1;
       }
     }
-    /* 시작만 있거나 없으면 → 1개월로 처리 (임의 추정 금지) */
     return 1;
   }
 
-  /* ══ [총액] ════════════════════════════════════════════════
-     ★ totalIdx가 있으면 그 값만 사용
-     ★ 없으면 월금액 × 기간 — 단 기간이 1이면 월금액 그대로
-     ★ 합계가 10조 초과하면 0 반환 (파싱 오류 방어)
-  ═════════════════════════════════════════════════════════ */
-  function getTotal(r){
-    if(totalIdx>=0){const t=av(r,totalIdx);if(t&&t<1e13)return t;}
-    const mv=getBestAmt(r);
-    if(!mv)return 0;
-    const p=getPeriod(r);
-    const result=mv*p;
-    return result<1e13?result:mv; /* 10조 초과 → 월금액만 반환 */
-  }
-
-  /* ══ [시작/종료 파싱] ══════════════════════════════════════ */
   function getDateRange(r){
     const s=sv(r,startIdx).trim();
     const e=sv(r,endIdx).trim();
     const ms=s.match(/(\d{4})[.\-\/년\s]*(\d{1,2})/);
     const me=e.match(/(\d{4})[.\-\/년\s]*(\d{1,2})/);
     return{
-      hasStart:!!ms,
-      hasEnd:!!me,
-      sy:ms?parseInt(ms[1]):0,sm:ms?parseInt(ms[2]):1,
-      ey:me?parseInt(me[1]):0,em:me?parseInt(me[2]):12,
+      hasStart:!!ms, hasEnd:!!me,
+      sy:ms?parseInt(ms[1]):0, sm:ms?parseInt(ms[2]):1,
+      ey:me?parseInt(me[1]):0, em:me?parseInt(me[2]):12,
     };
   }
 
-  /* ══ 기간 범위 파악 (시트 데이터 기반 자동) ═════════════ */
+  /* ══ [총액 계산] — totalIdx 우선, 없으면 월금액×기간 ═════ */
+  function getTotal(r){
+    if(totalIdx>=0){const t=av(r,totalIdx);if(t&&t<1e13)return t;}
+    const mv=getBestAmt(r);
+    if(!mv) return 0;
+    const p=getPeriod(r);
+    const result=mv*p;
+    return result<1e13?result:mv;
+  }
+
+  /* ══ [Leaf Node 필터링] ══════════════════════════════════
+     핵심: 합계 행 제거 → 금액 없는 행 제거
+     부모+자식 중복 합산 방지:
+     같은 카테고리 내에서 총액이 하위 항목 합과 일치하면 부모로 간주
+  ════════════════════════════════════════════════════════ */
+  /* 1차: 합계성 행 + 금액 없는 행 제거 */
+  const nonSummaryData=data.filter(r=>{
+    if(isSummaryRow(r)) return false;
+    const t=getTotal(r);
+    return t>0;
+  });
+
+  /* 2차: 같은 카테고리 그룹 내 중복 감지
+     카테고리별로 그룹화 후, 총액이 나머지 합과 근사(±5%)한 행은 부모로 제거 */
+  const catGroups=new Map();
+  nonSummaryData.forEach((r,idx)=>{
+    const cat=getCat(r);
+    if(!catGroups.has(cat)) catGroups.set(cat,[]);
+    catGroups.get(cat).push({r,idx,total:getTotal(r)});
+  });
+
+  const parentIndices=new Set();
+  catGroups.forEach((items)=>{
+    if(items.length<=1) return; /* 단독 항목 — 중복 없음 */
+    const totals=items.map(x=>x.total);
+    const sumAll=totals.reduce((a,b)=>a+b,0);
+    items.forEach(({r,idx,total})=>{
+      /* 이 항목의 금액이 나머지 합과 근사하면 부모(중복) */
+      const rest=sumAll-total;
+      if(rest>0&&Math.abs(total-rest)/Math.max(total,rest)<0.05){
+        /* 부모 후보 — 항목명에 합계성 단어가 있거나 totalIdx 컬럼값인 경우 우선 */
+        const name=(sv(r,itemIdx)||sv(r,catIdx)||'').trim();
+        if(/합계|소계|계$|합산|total|sum/i.test(name)||totalIdx>=0&&av(r,totalIdx)>0){
+          parentIndices.add(idx);
+          console.log('[법인비용][부모 제외]', name, '금액:', total, '나머지합:', rest);
+        }
+      }
+    });
+  });
+
+  /* Leaf Node 최종 목록 */
+  const leafData=nonSummaryData.filter((_,idx)=>!parentIndices.has(idx));
+
+  console.log('[법인비용] Leaf Node 필터링:', {
+    전체행수: data.length,
+    합계제거후: nonSummaryData.length,
+    부모제거후: leafData.length
+  });
+  leafData.forEach(r=>{
+    const name=sv(r,itemIdx)||sv(r,catIdx)||'(항목없음)';
+    console.log('[합산 포함]', name, getTotal(r));
+  });
+
+  /* ══ 기간 범위 파악 (Leaf Node 기반) ═══════════════════ */
   let minYear=9999,maxYear=0;
-  data.forEach(r=>{
+  leafData.forEach(r=>{
     const dr=getDateRange(r);
-    if(dr.hasStart){
-      if(dr.sy<minYear)minYear=dr.sy;
-      if(dr.sy>maxYear)maxYear=dr.sy;
-    }
+    if(dr.hasStart){if(dr.sy<minYear)minYear=dr.sy;if(dr.sy>maxYear)maxYear=dr.sy;}
     if(dr.hasEnd&&dr.ey>maxYear)maxYear=dr.ey;
+    /* 납부 상세에서 날짜 범위 추출 */
+    const sched=getPaySchedule(r);
+    if(sched.type==='dates'&&sched.dates.length){
+      const dys=sched.dates.map(d=>d.y);
+      const mn=Math.min(...dys),mx=Math.max(...dys);
+      if(mn<minYear)minYear=mn;
+      if(mx>maxYear)maxYear=mx;
+    }
+    if(sched.type==='lump'&&sched.ym){
+      if(sched.ym.y<minYear)minYear=sched.ym.y;
+      if(sched.ym.y>maxYear)maxYear=sched.ym.y;
+    }
+    if(sched.type==='range'){
+      if(sched.sy<minYear)minYear=sched.sy;
+      if(sched.ey>maxYear)maxYear=sched.ey;
+    }
   });
   if(minYear===9999||maxYear===0){minYear=new Date().getFullYear();maxYear=minYear+5;}
   maxYear=Math.min(maxYear,minYear+10);
@@ -2623,71 +2782,100 @@ function renderCorp(rows){
   for(let y=minYear;y<=maxYear;y++)
     for(let m=1;m<=12;m++)months.push({y,m});
 
-  /* ══ [월별 배분 계산] ══════════════════════════════════════
-     납부방법에 따라 각 월에 얼마가 배분되는지 계산
-  ════════════════════════════════════════════════════════════ */
+  /* ══ [월별 배분 계산] — 납부방법 상세 우선 적용 ══════════
+     우선순위: 납부방법 상세 → 납부방법 → 계약기간
+  ════════════════════════════════════════════════════════ */
   function amtInMonth(r,y,m){
     const dr=getDateRange(r);
     const total=getTotal(r);
     const period=getPeriod(r);
-    const method=getPayMethod(r);
+    const sched=getPaySchedule(r);
     const cur=y*100+m;
 
-    /* 시작~종료 범위 계산 */
+    /* 시작/종료 YM 계산 */
     let startYM=dr.hasStart?dr.sy*100+dr.sm:minYear*100+1;
     let endYM;
     if(dr.hasEnd){
       endYM=dr.ey*100+dr.em;
     } else {
-      /* 기간으로 계산 */
       const totalMo=dr.sy*12+dr.sm-1+period-1;
       endYM=Math.floor(totalMo/12)*100+(totalMo%12+1);
       if(!dr.hasStart){startYM=minYear*100+1;endYM=startYM+period-1;}
     }
 
-    /* 납부방법별 분배 */
-    if(method==='lump'){
-      /* 일시납: 시작월에만 100% */
-      return cur===startYM?total:0;
-    }
-    if(typeof method==='object'&&method.type==='installment'){
-      /* n회 분할: 시작월부터 n개월에 균등 분배 */
-      const cnt=method.count;
-      const perPay=total/cnt;
-      /* 분할 납부 월 계산 */
-      const totalMonths=dr.sy*12+dr.sm-1; // 0-based
-      for(let i=0;i<cnt;i++){
-        const pmTotal=totalMonths+i;
-        const py=Math.floor(pmTotal/12),pm=(pmTotal%12)+1;
-        if(py===y&&pm===m)return perPay;
+    switch(sched.type){
+
+      /* ── 특정 월 목록 분할납부 (26-05 / 26-09 / ...) ── */
+      case'dates':{
+        const found=sched.dates.find(d=>d.y===y&&d.m===m);
+        if(!found) return 0;
+        return total/sched.dates.length; /* 균등 분할 */
       }
-      return 0;
+
+      /* ── 일시납 ── */
+      case'lump':{
+        /* 상세에 특정월 지정된 경우 */
+        if(sched.ym){
+          return(sched.ym.y===y&&sched.ym.m===m)?total:0;
+        }
+        /* 미지정 → 시작월에 일시납 */
+        return cur===startYM?total:0;
+      }
+
+      /* ── 분할납부(횟수만 지정, 특정 월 없음) ── */
+      case'installment':{
+        const cnt=sched.count;
+        const perPay=total/cnt;
+        const base=dr.hasStart?dr.sy*12+dr.sm-1:minYear*12;
+        for(let i=0;i<cnt;i++){
+          const pm=base+i;
+          const py=Math.floor(pm/12),pmo=(pm%12)+1;
+          if(py===y&&pmo===m) return perPay;
+        }
+        return 0;
+      }
+
+      /* ── 범위(기간) 납부 ── */
+      case'range':{
+        const rStartYM=sched.sy*100+sched.sm;
+        const rEndYM=sched.ey*100+sched.em;
+        if(cur<rStartYM||cur>rEndYM) return 0;
+        const months=(sched.ey-sched.sy)*12+(sched.em-sched.sm)+1;
+        const mv=getBestAmt(r);
+        return mv>0?mv:months>0?total/months:total;
+      }
+
+      /* ── 매월 납부 (기본) ── */
+      case'monthly':
+      default:{
+        if(cur<startYM||cur>endYM) return 0;
+        const mv=getBestAmt(r);
+        if(mv>0) return mv;
+        return period>0?total/period:total;
+      }
     }
-    /* 매월 납부: 범위 안에 있으면 월 금액 */
-    if(cur>=startYM&&cur<=endYM){
-      const mv=getBestAmt(r);
-      if(mv>0)return mv;
-      return period>0?total/period:total;
-    }
-    return 0;
   }
 
-  /* ══ 카테고리 목록 수집 (시트 기반 자동, 순서 유지) ═══ */
+  /* ══ 카테고리 목록 수집 (Leaf Node 기반) ════════════════ */
   const catOrder=[];
   const catMap=new Map();
-  data.forEach(r=>{
+  leafData.forEach(r=>{
     const cat=getCat(r);
     if(!catMap.has(cat)){catMap.set(cat,[]);catOrder.push(cat);}
     catMap.get(cat).push(r);
   });
 
-  /* ══ 카테고리별 총액 ════════════════════════════════════ */
+  /* ══ 카테고리별 총액 (Leaf Node 합산) ═══════════════════ */
   const catTotals=new Map();
   catOrder.forEach(cat=>{
     const t=catMap.get(cat).reduce((a,r)=>a+getTotal(r),0);
     catTotals.set(cat,t);
   });
+  /* grandTotal = Leaf Node만 합산 → 중복 없음 */
   const grandTotal=[...catTotals.values()].reduce((a,b)=>a+b,0);
+
+  console.log('[법인비용] 카테고리별 총액:', Object.fromEntries(catTotals));
+  console.log('[법인비용] 총 법인비용(Leaf Node):', grandTotal);
 
   /* ══ 월별 합계 계산 ══════════════════════════════════════ */
   const monthlyData=months.map(({y,m})=>{
@@ -2700,21 +2888,23 @@ function renderCorp(rows){
   });
   const monthlyFiltered=monthlyData.filter(d=>d.total>0);
 
-  /* ══ [KPI] 단색 통일 ════════════════════════════════════ */
-  const totalItems=data.length;
+  /* ══ [KPI 카드] — 개인비용 탭 스타일 통일 ══════════════ */
+  const totalItems=leafData.length;
   const nonZeroMonths=monthlyFiltered.length;
   const avgMonthly=nonZeroMonths>0
     ?monthlyFiltered.reduce((a,d)=>a+d.total,0)/nonZeroMonths:0;
   const maxMonth=monthlyFiltered.reduce((best,d)=>d.total>best.total?d:best,{total:0,y:0,m:0});
 
-  /* 카테고리별 최대 4개 KPI 카드 */
+  /* 상위 카테고리 KPI (최대 3개) */
   const topCats=catOrder.slice(0,3);
-  const catKpiHTML=topCats.map(cat=>`
-    <div class="kpi b">
+  const catKpiHTML=topCats.map((cat,i)=>{
+    const colors=['r','p','o'];
+    return`<div class="kpi ${colors[i]||'b'}">
       <div class="kpi-lbl">${cat}</div>
       <div class="kpi-val" style="color:var(--red)">${fmtBig(catTotals.get(cat))}원</div>
       <div class="kpi-sub">${catMap.get(cat).length}건</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const kpiHTML=`<div class="kpi-row">
     <div class="kpi b">
@@ -2722,12 +2912,12 @@ function renderCorp(rows){
       <div class="kpi-val" style="color:var(--red)">${fmtBig(grandTotal)}원</div>
       <div class="kpi-sub">${totalItems}건 · ${catOrder.length}개 카테고리</div>
     </div>
-    <div class="kpi b">
+    <div class="kpi g">
       <div class="kpi-lbl">평균 월 지출</div>
       <div class="kpi-val">${fmtBig(avgMonthly)}원</div>
       <div class="kpi-sub">지출 발생 ${nonZeroMonths}개월 기준</div>
     </div>
-    ${maxMonth.total>0?`<div class="kpi b">
+    ${maxMonth.total>0?`<div class="kpi y">
       <div class="kpi-lbl">최대 지출 월</div>
       <div class="kpi-val">${maxMonth.y}.${String(maxMonth.m).padStart(2,'0')}</div>
       <div class="kpi-sub">${fmtBig(maxMonth.total)}원</div>
@@ -2735,7 +2925,7 @@ function renderCorp(rows){
     ${catKpiHTML}
   </div>`;
 
-  /* ══ [섹션 1] 카테고리별 요약 표 ═══════════════════════ */
+  /* ══ [섹션 1] 카테고리별 요약표 — 개인비용 탭 스타일 ════ */
   const summaryRows=catOrder.map(cat=>{
     const crows=catMap.get(cat);
     const total=catTotals.get(cat);
@@ -2750,17 +2940,19 @@ function renderCorp(rows){
       periodSummary=`${sLabel} ~ ${eLabel}`;
     }
     /* 납부방법 요약 */
-    const methods=crows.map(r=>getPayMethod(r));
-    const methodLabels=[...new Set(methods.map(m=>
-      m==='lump'?'일시납':
-      m==='monthly'?'매월':
-      typeof m==='object'?`${m.count}회 분할`:'매월'
-    ))].join(' / ');
+    const scheds=crows.map(r=>getPaySchedule(r));
+    const methodLabels=[...new Set(scheds.map(s=>{
+      if(s.type==='dates')   return`${s.dates.length}회 분할`;
+      if(s.type==='lump')    return'일시납';
+      if(s.type==='installment') return`${s.count}회 분할`;
+      if(s.type==='range')   return'기간납부';
+      return'매월';
+    }))].join(' / ');
     return`<tr>
       <td class="label">${cat}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--t3)">${periodSummary}</td>
       <td style="font-size:11px;color:var(--t3)">${methodLabels||'—'}</td>
-      <td class="r">${crows.length}건</td>
+      <td class="r" style="font-family:var(--mono);font-size:11px;color:var(--t3)">${crows.length}건</td>
       <td class="r"><span class="exp" style="font-weight:600">${fmtBig(total)}원</span></td>
     </tr>`;
   }).join('');
@@ -2774,22 +2966,25 @@ function renderCorp(rows){
     <div class="cf-table-wrap"><div style="overflow-x:auto">
       <table class="cf-table">
         <thead><tr>
-          <th>카테고리</th><th>기간</th><th>납부방법</th>
-          <th class="r">건수</th><th class="r">총액</th>
+          <th>카테고리</th>
+          <th>기간</th>
+          <th>납부방법</th>
+          <th class="r">건수</th>
+          <th class="r">총액</th>
         </tr></thead>
         <tbody>
           ${summaryRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--t4)">데이터 없음</td></tr>'}
           <tr class="subtotal-row">
-            <td colspan="4">합 계</td>
-            <td class="r"><span class="exp">${fmtBig(grandTotal)}원</span></td>
+            <td colspan="4" style="font-weight:700">합 계</td>
+            <td class="r"><span class="exp" style="font-weight:700">${fmtBig(grandTotal)}원</span></td>
           </tr>
         </tbody>
       </table>
     </div></div>
   </div>`;
 
-  /* ══ [섹션 2] 항목별 상세 요약 표 ═══════════════════════ */
-  const itemRows=data.map(r=>{
+  /* ══ [섹션 2] 항목별 상세표 (Leaf Node 기준) ════════════ */
+  const itemRows=leafData.map(r=>{
     const item=sv(r,itemIdx)||sv(r,catIdx)||'(항목없음)';
     const cat=getCat(r);
     const total=getTotal(r);
@@ -2797,15 +2992,22 @@ function renderCorp(rows){
     const dr=getDateRange(r);
     const s=sv(r,startIdx),e=sv(r,endIdx);
     const periodStr=s&&e?`${s} ~ ${e}`:period>1?`${period}개월`:'—';
-    const method=getPayMethod(r);
-    const methodLabel=method==='lump'?'일시납':method==='monthly'?'매월':
-      typeof method==='object'?`${method.count}회 분할`:'매월';
+    const sched=getPaySchedule(r);
+    /* 납부방법 표시 — 상세 포함 */
+    let methodLabel='매월';
+    if(sched.type==='dates')        methodLabel=`${sched.dates.length}회 분할`;
+    else if(sched.type==='lump')    methodLabel='일시납'+(sched.ym?` (${sched.ym.y}.${String(sched.ym.m).padStart(2,'0')})` :'');
+    else if(sched.type==='installment') methodLabel=`${sched.count}회 분할`;
+    else if(sched.type==='range')   methodLabel='기간납부';
+    /* 납부방법 상세 원문 표시 */
+    const detStr=sv(r,methodDetIdx);
+    const detDisp=detStr&&detStr!==methodLabel?`<span style="color:var(--t4);font-size:10px;display:block;margin-top:2px">${detStr}</span>`:'';
     const note=sv(r,noteIdx);
     return`<tr>
       <td class="label">${item}${note?`<span style="color:var(--t4);font-size:10px;margin-left:6px">${note}</span>`:''}</td>
       <td style="font-size:11px;color:var(--t3)">${cat}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--t3)">${periodStr}</td>
-      <td style="font-size:11px;color:var(--t3)">${methodLabel}</td>
+      <td style="font-size:11px;color:var(--t2)">${methodLabel}${detDisp}</td>
       <td class="r"><span class="exp">${total?fmtBig(total)+'원':'—'}</span></td>
     </tr>`;
   }).join('');
@@ -2813,8 +3015,8 @@ function renderCorp(rows){
   const itemHTML=`<div class="cf-section">
     <div class="cf-section-head">
       <div class="cf-section-bar" style="background:var(--red)"></div>
-      <div class="cf-section-title">항목별 상세</div>
-      <div class="cf-section-sub">${data.length}건</div>
+      <div class="cf-section-title">항목별 상세 <span style="font-size:10px;font-weight:400;color:var(--t4)">(Leaf Node 기준 · 합계행 제외)</span></div>
+      <div class="cf-section-sub">${leafData.length}건</div>
     </div>
     <div class="cf-table-wrap"><div style="overflow-x:auto">
       <table class="cf-table">
@@ -2825,70 +3027,67 @@ function renderCorp(rows){
         <tbody>
           ${itemRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--t4)">항목 없음</td></tr>'}
           <tr class="subtotal-row">
-            <td colspan="4">합 계</td>
-            <td class="r"><span class="exp">${fmtBig(grandTotal)}원</span></td>
+            <td colspan="4" style="font-weight:700">합 계 (Leaf Node)</td>
+            <td class="r"><span class="exp" style="font-weight:700">${fmtBig(grandTotal)}원</span></td>
           </tr>
         </tbody>
       </table>
     </div></div>
   </div>`;
 
-  /* ══ [섹션 3] 월별 상세 테이블 ══════════════════════════
-     열: 연월 | 단계 | 카테고리별... | 월 합계 | 누적
+  /* ══ [섹션 3] 월별 캐시플로우 — 개인비용 탭 스타일 ═══════
+     열: 연월 | 카테고리별 분해 | 월 합계 | 누적
+     연도 구분행 + 연도 소계 + 전체 합계 강조
   ════════════════════════════════════════════════════════ */
-  /* 표시할 카테고리 — 월별 데이터가 있는 것만 */
   const activeCats=catOrder.filter(cat=>
     monthlyData.some(d=>d.bycat[cat]>0)
   );
 
   let cumTotal=0;
   let monthTableHTML='',lastY=null,yrSum=0;
+  const yrByCat={};
+
   monthlyData.forEach(({y,m,bycat,total})=>{
     if(y!==lastY){
+      /* 연도 소계 행 출력 */
       if(lastY!==null&&yrSum>0){
         monthTableHTML+=`<tr class="yr-total">
           <td>${lastY}년 소계</td>
-          ${activeCats.map(()=>'<td></td>').join('')}
+          ${activeCats.map(cat=>`<td class="r">${(yrByCat[cat]||0)>0?`<span class="exp" style="font-size:11px">${fmtBig(yrByCat[cat])}원</span>`:`<span class="dim">—</span>`}</td>`).join('')}
           <td class="r"><span class="exp">${fmtBig(yrSum)}원</span></td>
           <td class="r"></td>
         </tr>`;
       }
+      /* 연도 구분 행 */
       monthTableHTML+=`<tr class="yr-group"><td colspan="${activeCats.length+3}">${y}년</td></tr>`;
-      lastY=y;yrSum=0;
+      lastY=y; yrSum=0;
+      activeCats.forEach(c=>{yrByCat[c]=0;});
     }
-    if(total===0)return; /* 지출 없는 달 생략 */
+    if(total===0) return; /* 지출 없는 달 생략 */
     yrSum+=total;
     cumTotal+=total;
-    /* 진행 단계 — stageIdx 있으면 시트값, 없으면 연도 기반 추정 */
-    const stage=stageIdx>=0
-      ?data.reduce((best,r)=>{
-          const dr=getDateRange(r);
-          const cur=y*100+m;
-          const inR=dr.hasStart&&dr.hasEnd&&cur>=dr.sy*100+dr.sm&&cur<=dr.ey*100+dr.em;
-          return inR?(sv(r,stageIdx)||best):best;
-        },'')
-      :'';
+    activeCats.forEach(c=>{yrByCat[c]=(yrByCat[c]||0)+(bycat[c]||0);});
     monthTableHTML+=`<tr>
       <td class="ym">${y}.${String(m).padStart(2,'0')}</td>
-      ${activeCats.map(cat=>`<td class="r">${bycat[cat]>0?`<span class="exp">${fmtBig(bycat[cat])}원</span>`:`<span class="dim">—</span>`}</td>`).join('')}
+      ${activeCats.map(cat=>`<td class="r">${(bycat[cat]||0)>0?`<span class="exp">${fmtBig(bycat[cat])}원</span>`:`<span class="dim">—</span>`}</td>`).join('')}
       <td class="r"><span class="exp" style="font-weight:600">${fmtBig(total)}원</span></td>
-      <td class="r"><span class="neu">${fmtBig(cumTotal)}원</span></td>
+      <td class="r"><span class="neu" style="font-size:11px">${fmtBig(cumTotal)}원</span></td>
     </tr>`;
   });
   /* 마지막 연도 소계 */
   if(lastY&&yrSum>0){
     monthTableHTML+=`<tr class="yr-total">
       <td>${lastY}년 소계</td>
-      ${activeCats.map(()=>'<td></td>').join('')}
+      ${activeCats.map(cat=>`<td class="r">${(yrByCat[cat]||0)>0?`<span class="exp" style="font-size:11px">${fmtBig(yrByCat[cat])}원</span>`:`<span class="dim">—</span>`}</td>`).join('')}
       <td class="r"><span class="exp">${fmtBig(yrSum)}원</span></td>
       <td class="r"></td>
     </tr>`;
   }
-  /* 최종 합계 행 */
+  /* 전체 합계 행 */
   if(cumTotal>0){
     monthTableHTML+=`<tr class="subtotal-row">
-      <td>전체 합계</td>
-      ${activeCats.map(cat=>`<td class="r"><span class="exp">${fmtBig(catTotals.get(cat))}원</span></td>`).join('')}
+      <td style="font-weight:700">전체 합계</td>
+      ${activeCats.map(cat=>`<td class="r"><span class="exp" style="font-weight:600">${fmtBig(catTotals.get(cat)||0)}원</span></td>`).join('')}
       <td class="r"><span class="exp" style="font-weight:700">${fmtBig(cumTotal)}원</span></td>
       <td class="r"></td>
     </tr>`;
@@ -2897,17 +3096,22 @@ function renderCorp(rows){
   const monthHTML=monthlyFiltered.length>0?`<div class="cf-section">
     <div class="cf-section-head">
       <div class="cf-section-bar" style="background:var(--orange)"></div>
-      <div class="cf-section-title">월별 비용 상세</div>
+      <div class="cf-section-title">월별 비용 캐시플로우</div>
       <div class="cf-section-sub">${minYear}–${maxYear} · 총 ${fmtBig(cumTotal)}원</div>
     </div>
     <div class="cf-table-wrap"><div style="overflow-x:auto">
       <table class="cf-table">
-        <thead><tr>
-          <th>연월</th>
-          ${activeCats.map(cat=>`<th class="r">${cat}</th>`).join('')}
-          <th class="r">월 합계</th>
-          <th class="r">누적</th>
-        </tr></thead>
+        <thead>
+          <tr>
+            <th rowspan="2">연월</th>
+            ${activeCats.length?`<th colspan="${activeCats.length}" style="text-align:center;color:var(--red);border-bottom:2px solid var(--red);background:rgba(240,56,96,.05)">📤 비용 항목별</th>`:''}
+            <th rowspan="2" class="r" style="color:var(--red)">월 합계</th>
+            <th rowspan="2" class="r" style="color:var(--blue)">누적</th>
+          </tr>
+          <tr>
+            ${activeCats.map(cat=>`<th class="r" style="color:var(--red);font-size:9.5px;background:rgba(240,56,96,.04)">${cat}</th>`).join('')}
+          </tr>
+        </thead>
         <tbody>${monthTableHTML||'<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--t4)">월별 배분 데이터 없음 — 시트에 시작일/종료일 또는 기간을 입력해주세요</td></tr>'}</tbody>
       </table>
     </div></div>
@@ -2915,14 +3119,14 @@ function renderCorp(rows){
   :`<div class="cf-section">
     <div class="cf-section-head">
       <div class="cf-section-bar" style="background:var(--t4)"></div>
-      <div class="cf-section-title">월별 비용 상세</div>
+      <div class="cf-section-title">월별 비용 캐시플로우</div>
     </div>
     <div class="cf-table-wrap" style="padding:30px;text-align:center;color:var(--t4)">
       시트에 시작일/종료일 또는 기간 컬럼을 입력하면 월별 상세가 자동으로 표시됩니다
     </div>
   </div>`;
 
-  /* ══ [원본 데이터] 기본 숨김 — 접기/펼치기 ══ */
+  /* ══ [원본 데이터] 접기/펼치기 ══════════════════════════ */
   CACHE['corp_cfn']=null;
   initTS('corp');TS['corp']={search:'',sortCol:-1,sortAsc:true,page:1};
 
@@ -2939,7 +3143,7 @@ function renderCorp(rows){
         <div class="cf-section-title" style="color:var(--t3)">원본 데이터
           <span class="raw-toggle" style="font-size:11px;font-weight:400;color:var(--t4);margin-left:6px">▶ 펼치기</span>
         </div>
-        <div class="cf-section-sub">${data.length}건 · 클릭하여 열기</div>
+        <div class="cf-section-sub">${data.length}건 (전체) / Leaf Node ${leafData.length}건 · 클릭하여 열기</div>
       </div>
       <div id="corp-raw" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r)">
         <div id="corp-tbl"></div>
