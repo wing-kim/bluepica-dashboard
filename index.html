@@ -405,47 +405,32 @@ td:first-child{color:var(--t1);font-weight:500}
 .type-out{background:rgba(240,56,96,.08);color:#e04060;border-color:rgba(240,56,96,.18)}
 .type-etc{background:rgba(59,127,255,.08);color:var(--blue);border-color:rgba(59,127,255,.18)}
 
-/* ═══════════════════════════════════════════════════
-   수입·지출 좌우 분리 요약 레이아웃
-═══════════════════════════════════════════════════ */
-.cf-summary-split{
-  display:grid;grid-template-columns:1fr 1fr;
+/* ═══ 수입·지출 좌우 분리 요약 ═══════════════════════════ */
+.cf-summary-split{display:grid;grid-template-columns:1fr 1fr;
   border:1px solid var(--border);border-top:none;
-  border-radius:0 0 var(--r) var(--r);overflow:hidden;
-}
+  border-radius:0 0 var(--r) var(--r);overflow:hidden}
 .cf-split-panel{overflow-x:auto}
 .cf-split-panel.inc-panel{border-right:1px solid var(--border2)}
-.cf-split-title{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.5px;
-  border-bottom:1px solid var(--border2);
-}
+.cf-split-title{display:flex;align-items:center;gap:8px;padding:8px 14px;
+  font-size:11px;font-weight:700;letter-spacing:.5px;border-bottom:1px solid var(--border2)}
 .cf-split-title.inc{background:rgba(34,209,134,.07);color:#22c55e;border-left:3px solid #22c55e}
 .cf-split-title.exp{background:rgba(240,56,96,.07);color:#ef4444;border-left:3px solid #ef4444}
 .cf-split-table{width:100%;border-collapse:collapse;font-size:12.5px}
-.cf-split-table th{
-  padding:7px 14px;text-align:left;font-size:9.5px;font-weight:600;
+.cf-split-table th{padding:7px 14px;text-align:left;font-size:9.5px;font-weight:600;
   color:#e5e7eb;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;
-  background:var(--s2);border-bottom:1px solid var(--border);
-}
+  background:var(--s2);border-bottom:1px solid var(--border)}
 .cf-split-table th.r{text-align:right}
-.cf-split-table td{
-  padding:8px 14px;border-bottom:1px solid rgba(34,38,54,.5);
-  color:var(--t2);white-space:nowrap;vertical-align:middle;
-}
+.cf-split-table td{padding:8px 14px;border-bottom:1px solid rgba(34,38,54,.5);
+  color:var(--t2);white-space:nowrap;vertical-align:middle}
 .cf-split-table tbody tr:last-child td{border-bottom:none}
 .cf-split-table tbody tr:hover td{background:rgba(59,127,255,.03);color:var(--t1)}
 .cf-split-table td.label{color:var(--t1);font-weight:500}
 .cf-split-table td.r{text-align:right;font-family:var(--mono);font-size:12px}
-.cf-split-table tr.split-subtotal td{
-  background:rgba(26,31,46,.6);border-top:1px solid var(--border2);
-  font-weight:700;padding:8px 14px;color:var(--t1);
-}
-.cf-net-row{
-  grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;
+.cf-split-table tr.split-subtotal td{background:rgba(26,31,46,.6);
+  border-top:1px solid var(--border2);font-weight:700;padding:8px 14px;color:var(--t1)}
+.cf-net-row{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;
   padding:10px 18px;background:rgba(59,127,255,.07);
-  border-top:2px solid rgba(59,127,255,.35);font-size:13px;font-weight:700;color:var(--t1);
-}
+  border-top:2px solid rgba(59,127,255,.35);font-size:13px;font-weight:700;color:var(--t1)}
 .cf-net-val{font-family:var(--mono);font-size:15px;font-weight:700}
 
 .pg{background:var(--s2);border:1px solid var(--border);color:var(--t2);
@@ -2027,11 +2012,12 @@ function renderPersonal(rows){
     );
 
     /* 기간 행 forward-fill: 병합 셀 대응
-       ★ nc()로 정규화하면 "2026-05~2028-12" 날짜 구분자가 뭉개짐
-          period는 raw 원본 trim만 적용해 보존 */
+       ★ nc()로 정규화하지 않고 원본 raw 보존
+          nc()는 공백 정리용이라 날짜 구분자(~-.) 변형 가능성 있음 */
     const filledPeriod=[];
     let lastPer='';
     for(let col=1;col<maxCols;col++){
+      /* trim만 적용, nc() 정규화 제거 */
       const raw=String(periodRow&&periodRow[col]!=null?periodRow[col]:'').trim();
       if(raw) lastPer=raw;
       filledPeriod[col]=lastPer;
@@ -2059,25 +2045,25 @@ function renderPersonal(rows){
   const totalExpense=expenseItems.reduce((a,o)=>a+o.amount,0);
   const netCF=totalIncome-totalExpense;
 
-  /* ══ 기간 파싱 → {sy,sm,ey,em} ═══════════════════════════
-     "YYYY-MM-DD ~ YYYY-MM-DD" 형식 우선 처리
-     Day 부분(DD)이 패턴을 오탐하지 않도록 분리 정규식 사용
+  /* ══ 기간 파싱 → {sy,sm,ey,em,single} ══════════════════════
+     ★ 지원 형식:
+       범위: 2026-05-01~2028-12-31 / 2026-05~2028-12 / 2026.05~2028.12
+       단일: 2026-08-15 / 2026-08 / 2026.08
+       구분자: ~ – — (공백 있거나 없거나 모두 OK)
+     ★ single=true → 해당 월 1회만 반영 (보증금 반환 등)
   ════════════════════════════════════════════════════════ */
-  /* ★ parsePeriod 강화 — 구글 시트 날짜 형식 전부 커버
-     2026-05~2028-12 / 2026.05~2028.12 / 2026-05-01~2028-12-31
-     구분자: ~ – — (앞뒤 공백 있거나 없거나 모두 OK) */
   function parsePeriod(s){
     const str=String(s||'').trim();
     if(!str) return null;
-    /* 범위형: YYYY[-./]MM[-./DD]? [~–—] YYYY[-./]MM */
-    const m=str.match(/(\d{4})[-.\/](\d{1,2})(?:[-.\/]\d{1,2})?\s*[~\u2013\u2014]\s*(\d{4})[-.\/](\d{1,2})/);
-    if(m)return{sy:+m[1],sm:+m[2],ey:+m[3],em:+m[4]};
-    /* 범위형 (하이픈이 구분자인 경우 — YYYY-MM-YYYY-MM 패턴) */
-    const m2=str.match(/(\d{4})[-](\d{2})\s*-\s*(\d{4})[-](\d{2})(?!\d)/);
-    if(m2)return{sy:+m2[1],sm:+m2[2],ey:+m2[3],em:+m2[4]};
-    /* 단일 연월 */
-    const m3=str.match(/(\d{4})[-.\/](\d{1,2})/);
-    if(m3)return{sy:+m3[1],sm:+m3[2],ey:+m3[1],em:+m3[2]};
+    /* 1순위: 범위형 YYYY[-./]MM[-./DD]? [~–—] YYYY[-./]MM[-./DD]? */
+    const mR=str.match(/(\d{4})[-.\/](\d{1,2})(?:[-.\/]\d{1,2})?\s*[~\u2013\u2014]\s*(\d{4})[-.\/](\d{1,2})/);
+    if(mR)return{sy:+mR[1],sm:+mR[2],ey:+mR[3],em:+mR[4],single:false};
+    /* 2순위: 범위형 (하이픈이 구분자) YYYY-MM-YYYY-MM */
+    const mR2=str.match(/(\d{4})[-](\d{2})\s*-\s*(\d{4})[-](\d{2})(?!\d)/);
+    if(mR2)return{sy:+mR2[1],sm:+mR2[2],ey:+mR2[3],em:+mR2[4],single:false};
+    /* 3순위: 단일 연월일 YYYY-MM-DD → 해당 월 1회 */
+    const mS=str.match(/(\d{4})[-.\/](\d{1,2})(?:[-.\/](\d{1,2}))?/);
+    if(mS)return{sy:+mS[1],sm:+mS[2],ey:+mS[1],em:+mS[2],single:true};
     return null;
   }
 
@@ -2131,19 +2117,37 @@ function renderPersonal(rows){
   function cfKey(y,m){return `${y}-${String(m).padStart(2,'0')}`;}
   const cfMap={};
 
+  /* ══ 월별 캐시플로우 맵 생성 ════════════════════════════════
+     ★ 기간형(single=false): sy.sm ~ ey.em 매월 반복
+     ★ 단일형(single=true) : sy.sm 월에 1회만 반영 (보증금 반환 등)
+     ★ 기간 미입력          : minY 1월에 fallback (데이터 표시 보장)
+  ════════════════════════════════════════════════════════ */
   function addMonthsByCol(items){
     items.forEach(o=>{
       if(!o.amount) return;
       const p=parsePeriod(o.period);
-      /* ★ 디버그: F12 콘솔에서 period 파싱 결과 확인 가능 */
-      console.log(`[CF] ${o.col} | period="${o.period}" | parsed=`, p);
+      /* ★ 디버그: F12 콘솔 [CF] 로그로 파싱 결과 확인 가능 */
+      console.log(`[CF] ${o.col} | raw="${o.period}" | parsed=`,p);
+
+      /* 기간 미입력 항목 → minY 1월 fallback */
       if(!p){
-        /* 기간 미입력 항목 → minY 1월 단일 행에 fallback 표시 */
         const k=cfKey(minY,1);
         if(!cfMap[k]){cfMap[k]={y:minY,m:1}; allCols.forEach(c=>{cfMap[k][c]=0;});}
         cfMap[k][o.col]=(cfMap[k][o.col]||0)+o.amount;
         return;
       }
+
+      /* 단일 지급 (보증금 반환 등) → sy.sm 월 1회만 */
+      if(p.single){
+        if(p.sy>=minY&&p.sy<=maxY){
+          const k=cfKey(p.sy,p.sm);
+          if(!cfMap[k]){cfMap[k]={y:p.sy,m:p.sm}; allCols.forEach(c=>{cfMap[k][c]=0;});}
+          cfMap[k][o.col]=(cfMap[k][o.col]||0)+o.amount;
+        }
+        return;
+      }
+
+      /* 기간형 → sy.sm ~ ey.em 매월 반복 */
       let cy=p.sy,cm=p.sm;
       while(cy<p.ey||(cy===p.ey&&cm<=p.em)){
         if(cy>=minY&&cy<=maxY){
@@ -2176,7 +2180,7 @@ function renderPersonal(rows){
   /* ══ [KPI] 색상 강화 ══════════════════════════════════════
      총수입→green / 총지출→red / 순현금흐름→blue강조 / 총항목→purple
   ════════════════════════════════════════════════════════ */
-  /* ★ KPI 가독성 개선: 라벨 #e5e7eb, 수입→#22c55e, 지출→#ef4444, 순현금→초록/빨강 */
+  /* ★ KPI: 라벨 #e5e7eb, 수입→#22c55e, 지출→#ef4444, 순현금→초록/빨강 */
   const kpiHTML=`<div class="kpi-row">
     <div class="kpi g">
       <div class="kpi-lbl" style="color:#e5e7eb">총 수입</div>
@@ -2202,8 +2206,8 @@ function renderPersonal(rows){
     </div>
   </div>`;
 
-  /* ★ 요약 — 좌우 분리 구조 (기간·구분 컬럼 제거)
-     수입(좌) / 지출(우) 나란히, 하단 전체폭 순현금흐름 */
+  /* ★ 요약: 좌우 분리 구조 — 기간·구분 컬럼 제거
+     수입(좌) / 지출(우) / 하단 전폭 순현금흐름 */
   const summaryHTML=`<div class="cf-section">
     <div class="cf-section-head">
       <div class="cf-section-bar" style="background:#4F7CFF"></div>
@@ -2211,45 +2215,33 @@ function renderPersonal(rows){
       <div class="cf-section-sub">${incomeItems.length+expenseItems.length}건</div>
     </div>
     <div class="cf-summary-split">
-      <!-- 좌측: 수입 -->
+      <!-- 좌: 수입 -->
       <div class="cf-split-panel inc-panel">
         <div class="cf-split-title inc">📥 수입 항목 <span style="font-weight:400;font-size:10px;opacity:.7;margin-left:4px">${incomeItems.length}건</span></div>
         <table class="cf-split-table">
           <thead><tr><th>항목</th><th class="r">월 금액</th></tr></thead>
           <tbody>
             ${incomeItems.length
-              ? incomeItems.map(o=>`<tr>
-                  <td class="label">${o.item}</td>
-                  <td class="r"><span class="inc">${fmtBig(o.amount)}원</span></td>
-                </tr>`).join('')
-                +`<tr class="split-subtotal">
-                    <td>소계</td>
-                    <td class="r"><span class="inc">${fmtBig(totalIncome)}원</span></td>
-                  </tr>`
+              ? incomeItems.map(o=>`<tr><td class="label">${o.item}</td><td class="r"><span class="inc">${fmtBig(o.amount)}원</span></td></tr>`).join('')
+                +`<tr class="split-subtotal"><td>소계</td><td class="r"><span class="inc">${fmtBig(totalIncome)}원</span></td></tr>`
               : `<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--t4)">수입 항목 없음</td></tr>`}
           </tbody>
         </table>
       </div>
-      <!-- 우측: 지출 -->
+      <!-- 우: 지출 -->
       <div class="cf-split-panel exp-panel">
         <div class="cf-split-title exp">📤 지출 항목 <span style="font-weight:400;font-size:10px;opacity:.7;margin-left:4px">${expenseItems.length}건</span></div>
         <table class="cf-split-table">
           <thead><tr><th>항목</th><th class="r">월 금액</th></tr></thead>
           <tbody>
             ${expenseItems.length
-              ? expenseItems.map(o=>`<tr>
-                  <td class="label">${o.item}</td>
-                  <td class="r"><span class="exp">${fmtBig(o.amount)}원</span></td>
-                </tr>`).join('')
-                +`<tr class="split-subtotal">
-                    <td>소계</td>
-                    <td class="r"><span class="exp">${fmtBig(totalExpense)}원</span></td>
-                  </tr>`
+              ? expenseItems.map(o=>`<tr><td class="label">${o.item}</td><td class="r"><span class="exp">${fmtBig(o.amount)}원</span></td></tr>`).join('')
+                +`<tr class="split-subtotal"><td>소계</td><td class="r"><span class="exp">${fmtBig(totalExpense)}원</span></td></tr>`
               : `<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--t4)">지출 항목 없음</td></tr>`}
           </tbody>
         </table>
       </div>
-      <!-- 하단 전체 폭: 순현금흐름 -->
+      <!-- 하단 전폭: 순현금흐름 -->
       <div class="cf-net-row">
         <span>💰 월 순현금흐름 <span style="font-size:11px;font-weight:400;color:var(--t3);margin-left:6px">수입 − 지출</span></span>
         <span class="cf-net-val" style="color:${netCF>=0?'#22c55e':'#ef4444'}">${netCF>=0?'+':''}${fmtBig(netCF)}원</span>
