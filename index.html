@@ -429,6 +429,20 @@ td:first-child{color:var(--t1);font-weight:500}
 .cf-split-table td.r{text-align:right;font-family:var(--mono);font-size:12px}
 .cf-split-table tr.split-subtotal td{background:rgba(26,31,46,.6);
   border-top:1px solid var(--border2);font-weight:700;padding:8px 14px;color:var(--t1)}
+/* 지출 그룹 헤더 행 */
+.cf-split-table tr.exp-group-head td{
+  background:rgba(22,26,40,.9);
+  border-top:2px solid var(--border2);
+  padding:6px 14px;
+  font-size:10px;font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;color:var(--t3);
+}
+.cf-split-table tr.exp-group-head.loan-head td{
+  border-left:3px solid #4F7CFF;color:#7aa4ff;
+}
+.cf-split-table tr.exp-group-head.dep-head td{
+  border-left:3px solid #f5bc30;color:#e8a020;
+}
 .cf-net-row{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;
   padding:10px 18px;background:rgba(59,127,255,.07);
   border-top:2px solid rgba(59,127,255,.35);font-size:13px;font-weight:700;color:var(--t1)}
@@ -2503,7 +2517,8 @@ function renderPersonal(rows){
     return items;
   }
 
-  const summaryIncItems=blockToItems(incomeBlock,'수입');
+  /* 가로형 요약에서도 대출 항목은 수입으로 분류하지 않음 */
+  const summaryIncItems=blockToItems(incomeBlock,'수입').filter(o=>!/대출/.test(o.item));
   const summaryExpItems=blockToItems(expenseBlock,'지출');
 
   /* ══════════════════════════════════════════════════════════
@@ -2799,13 +2814,62 @@ function renderPersonal(rows){
   /* ══════════════════════════════════════════════════════════
      [G] 수입/지출 요약 테이블
   ══════════════════════════════════════════════════════════ */
+  /* ── 수입 상세: 대출/금액라벨/비임대 항목 제외 (분류 로직 수정) ──
+     - 대출금은 자금 조달 항목 → 수입 상세에서 제외
+     - name이 "금액", "항목" 등 라벨 문자인 행도 제외 (파싱 잔재)
+     - rent=0이고 mgmt=0인 빈 행도 제외 */
+  const INCOME_LABEL_EXCLUDE = /^(금액|항목|기간|수입기간|납부기간)$/;
+  const incDetailFiltered = useDetail
+    ? incDetail.filter(o => {
+        const nameStr = (o.name||'').trim();
+        if(!nameStr) return false;
+        if(INCOME_LABEL_EXCLUDE.test(nameStr)) return false;          // 라벨 행 제외
+        if(/대출/.test(nameStr+(o.building||''))) return false;       // 대출 제외
+        if(!o.rent && !o.mgmt) return false;                          // 금액 없는 행 제외
+        return true;
+      })
+    : incDetail;
+
   const incSummaryRows=useDetail
-    ? incDetail.map(o=>`<tr><td class="label">${o.building?`<span style="font-size:9px;color:var(--t3);margin-right:4px">${o.building}</span>`:''}${o.name}</td><td class="r">${fmtBig(o.rent)}원</td><td class="r">${o.mgmt?fmtBig(o.mgmt)+'원':'—'}</td></tr>`).join('')
+    ? incDetailFiltered.map(o=>`<tr><td class="label">${o.building?`<span style="font-size:9px;color:var(--t3);margin-right:4px">${o.building}</span>`:''}${o.name}</td><td class="r">${fmtBig(o.rent)}원</td><td class="r">${o.mgmt?fmtBig(o.mgmt)+'원':'—'}</td></tr>`).join('')
     : summaryIncItems.map(o=>`<tr><td class="label">${o.item}</td><td class="r" colspan="2"><span class="inc">${fmtBig(o.amount)}원</span></td></tr>`).join('');
 
+  /* ── 지출 상세: 2개 그룹으로 분리 ──
+     그룹1: 대출/고정비 (기간형 반복 지출)
+     그룹2: 보증금 환급 (계약 종료 시 일회성 환급) */
+  function isDepositItem(o){
+    return /환급|보증금|반환/.test((o.item||'')+(o.col||''));
+  }
+  function buildExpGroupRows(items, isDetailMode){
+    const loanItems = items.filter(o => !isDepositItem(o));
+    const depItems  = items.filter(o =>  isDepositItem(o));
+    const loanTotal = loanItems.reduce((a,o)=>a+(o.amount||0),0);
+    const depTotal  = depItems.reduce((a,o)=>a+(o.amount||0),0);
+
+    function rowsDetail(arr){
+      return arr.map(o=>`<tr><td class="label">${o.building?`<span style="font-size:9px;color:var(--t3);margin-right:4px">${o.building}</span>`:''}${o.item}</td><td class="r"><span class="exp">${fmtBig(o.amount)}원</span></td><td class="r" style="font-size:9.5px;color:var(--t3)">${o.period||'—'}</td></tr>`).join('');
+    }
+    function rowsSummary(arr){
+      return arr.map(o=>`<tr><td class="label">${o.item}</td><td class="r" colspan="2"><span class="exp">${fmtBig(o.amount)}원</span></td></tr>`).join('');
+    }
+
+    let html = '';
+    /* 그룹1: 대출/고정비 */
+    html += `<tr class="exp-group-head loan-head"><td colspan="3">💳 대출 / 고정비 <span style="float:right;font-weight:700;color:#7aa4ff;font-family:var(--mono)">${fmtBig(loanTotal)}원</span></td></tr>`;
+    html += isDetailMode ? rowsDetail(loanItems) : rowsSummary(loanItems);
+    if(!loanItems.length) html += `<tr><td colspan="3" style="padding:8px 14px;color:var(--t4);font-size:11px">항목 없음</td></tr>`;
+
+    /* 그룹2: 보증금 환급 */
+    html += `<tr class="exp-group-head dep-head"><td colspan="3">🔄 보증금 환급 <span style="float:right;font-weight:700;color:#e8a020;font-family:var(--mono)">${fmtBig(depTotal)}원</span></td></tr>`;
+    html += isDetailMode ? rowsDetail(depItems) : rowsSummary(depItems);
+    if(!depItems.length) html += `<tr><td colspan="3" style="padding:8px 14px;color:var(--t4);font-size:11px">항목 없음</td></tr>`;
+
+    return html;
+  }
+
   const expSummaryRows=useDetail
-    ? expDetail.map(o=>`<tr><td class="label">${o.building?`<span style="font-size:9px;color:var(--t3);margin-right:4px">${o.building}</span>`:''}${o.item}</td><td class="r">${fmtBig(o.amount)}원</td><td class="r" style="font-size:9.5px;color:var(--t3)">${o.period||'—'}</td></tr>`).join('')
-    : summaryExpItems.map(o=>`<tr><td class="label">${o.item}</td><td class="r" colspan="2"><span class="exp">${fmtBig(o.amount)}원</span></td></tr>`).join('');
+    ? buildExpGroupRows(expDetail, true)
+    : buildExpGroupRows(summaryExpItems, false);
 
   const summaryHTML=`<div class="cf-section">
     <div class="cf-section-head">
@@ -2815,7 +2879,7 @@ function renderPersonal(rows){
     </div>
     <div class="cf-summary-split">
       <div class="cf-split-panel inc-panel">
-        <div class="cf-split-title inc">📥 수입 상세 <span style="font-weight:400;font-size:10px;opacity:.7;margin-left:4px">${useDetail?incDetail.length:summaryIncItems.length}건</span></div>
+        <div class="cf-split-title inc">📥 수입 상세 <span style="font-weight:400;font-size:10px;opacity:.7;margin-left:4px">${useDetail?incDetailFiltered.length:summaryIncItems.filter(o=>/임대|관리비/.test(o.item)).length}건</span></div>
         <table class="cf-split-table">
           <thead><tr><th>임차인</th><th class="r">월 임대료</th><th class="r">월 관리비</th></tr></thead>
           <tbody>${incSummaryRows||`<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--t4)">수입 항목 없음</td></tr>`}</tbody>
