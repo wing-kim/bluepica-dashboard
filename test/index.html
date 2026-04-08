@@ -1685,7 +1685,7 @@ function irrCalcRun(){
 
   let totalBuy=0, totalLoan=0, totalDep=0, totalRent=0, totalArea=0, totalLandVal=0;
   const av=(r,i)=>i>=0?parseAmt(r[i]):0;
-  const sv=(r,i)=>i>=0?(r[i]||')':'';
+  const sv=(r,i)=>i>=0?(r[i]||''):'';
 
   if(sd._isStructureB){
     totalBuy    = sd._totalBuy    ||0;
