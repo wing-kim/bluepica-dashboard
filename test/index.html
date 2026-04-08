@@ -1992,6 +1992,140 @@ function irrCalcRun(){
   </div>`;
   const ris=(lbl,val)=>`<span class="ik">${lbl}</span><span class="iv">${val}</span>`;
 
+  /* ── iRow 헬퍼 (원본 스타일) ── */
+  const iRow=(lbl,val,color)=>{
+    const col={red:'var(--red)',green:'var(--green)',blue:'var(--blue)',yellow:'var(--yellow)'}[color]||'var(--t1)';
+    return`<div style="display:flex;justify-content:space-between;align-items:center;
+      padding:6px 0;border-bottom:1px solid rgba(34,38,54,.4);font-size:12px">
+      <span style="color:#8890aa;font-weight:500">${lbl}</span>
+      <span style="font-family:var(--mono);font-size:12.5px;font-weight:600;color:${col}">${val}</span>
+    </div>`;
+  };
+
+  /* ── 민감도 테이블 빌더 (원본 스타일) ── */
+  const irrMin=-0.05, irrMed=0.05, irrHigh=0.12;
+  const sensCell=(v,isCurrentRow,isCurrentCol)=>{
+    const highlight=isCurrentRow&&isCurrentCol;
+    if(v===null) return`<td style="text-align:center;color:var(--t4);font-size:10px;padding:7px 10px;border:1px solid rgba(42,48,80,.35)">—</td>`;
+    const pct=(v*100).toFixed(1)+'%';
+    let bg,tc,bord;
+    if(v<0){         bg='rgba(240,56,96,.22)'; tc='#ff6b6b'; bord='rgba(240,56,96,.4)';}
+    else if(v<irrMed){bg='rgba(245,188,48,.14)';tc='#f5bc30'; bord='rgba(245,188,48,.3)';}
+    else if(v<irrHigh){bg='rgba(34,209,134,.14)';tc='#22d186'; bord='rgba(34,209,134,.3)';}
+    else{              bg='rgba(34,209,134,.25)';tc='#00ff9d'; bord='rgba(34,209,134,.5)';}
+    const ring=highlight?`box-shadow:inset 0 0 0 2px ${bord};`:'';
+    return`<td style="text-align:center;background:${bg};border:1px solid ${bord};
+      font-family:var(--mono);font-size:11.5px;color:${tc};font-weight:700;
+      padding:7px 10px;${ring}">${pct}</td>`;
+  };
+
+  const buildSens=(rowSteps,colSteps,rowKey,colKey,rowFmt,colFmt,calcFn)=>{
+    const curRow=S[rowKey], curCol=S[colKey];
+    const nRow=rowSteps.reduce((bi,v,i)=>Math.abs(v-curRow)<Math.abs(rowSteps[bi]-curRow)?i:bi,0);
+    const nCol=colSteps.reduce((bi,v,i)=>Math.abs(v-curCol)<Math.abs(colSteps[bi]-curCol)?i:bi,0);
+    let t=`<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:var(--s3)">
+      <th style="padding:8px 12px;text-align:left;font-size:10px;color:#8890aa;border:1px solid var(--border2);font-weight:600">금리 ╲ 시세</th>
+      ${colSteps.map((c,ci)=>`<th style="padding:8px 10px;text-align:center;font-size:10px;
+        color:${ci===nCol?'var(--t1)':'#8890aa'};background:${ci===nCol?'rgba(59,127,255,.12)':'var(--s3)'};
+        border:1px solid ${ci===nCol?'rgba(59,127,255,.3)':'var(--border2)'};font-weight:600">${colFmt(c)}</th>`).join('')}
+    </tr></thead><tbody>`;
+    rowSteps.forEach((rv,ri)=>{
+      t+=`<tr><td style="padding:8px 12px;font-family:var(--mono);font-size:10.5px;font-weight:600;
+        color:${ri===nRow?'var(--t1)':'#8890aa'};background:${ri===nRow?'rgba(59,127,255,.08)':'var(--s2)'};
+        border:1px solid ${ri===nRow?'rgba(59,127,255,.25)':'var(--border2)'}white-space:nowrap">${rowFmt(rv)}</td>`;
+      colSteps.forEach((cv,ci)=>{
+        const ov={[rowKey]:rv,[colKey]:cv};
+        t+=sensCell(calcFn(ov),ri===nRow,ci===nCol);
+      });
+      t+='</tr>';
+    });
+    return t+'</tbody></table>';
+  };
+
+  const calcSensIRR2=(overS)=>{
+    const so={...S,...overS};
+    const cc2=(so.constCost+so.designCost)/W;
+    const eq2=buyOk-loanOk-depOk+buyOk*so.acqTaxRate;
+    if(eq2<=0)return null;
+    const avgR2=(so.rateA+so.rateB)/2;
+    const annI2=loanOk*avgR2;
+    const pfL2=cc2*so.pfRatio;
+    const pfI2=pfL2*so.pfRate;
+    const cfs=[-eq2];
+    for(let yr=1;yr<=so.totalYrs;yr++){
+      const arb2=(totalRent/W)*12;
+      if(yr<=so.holdYrs){
+        cfs.push(arb2*Math.pow(1+so.rentUp,yr-1)*(1-so.vacancy)-annI2-holdTaxOk.totalTax);
+      }else if(yr<=so.holdYrs+constY){
+        cfs.push(-annI2-pfI2-holdTaxOk.totalTax*0.5-(cc2-pfL2)/constY);
+      }else{
+        const yac=yr-so.holdYrs-constY;
+        const nr2=newRentAok*12*Math.pow(1+so.rentUp,yac-1)*(1-so.newVacancy);
+        cfs.push(nr2-annI2-pfI2-newHoldTaxOk.totalTax);
+      }
+      if(yr===so.totalYrs){
+        const sp2=buyOk*so.valueMult*Math.pow(1+so.priceUp,so.totalYrs);
+        const g2=sp2-buyOk-cc2-buyOk*so.acqTaxRate;
+        const la2=Math.max(0,g2)*0.15;
+        const tg2=Math.max(0,g2-la2);
+        const cgt2=progressiveTaxCalc(Math.max(0,tg2-0.025))*1.1;
+        const ns2=sp2-loanOk-pfL2-cgt2+depOk;
+        cfs[cfs.length-1]+= ns2;
+      }
+    }
+    try{const r2=irrNR(cfs);return(!isNaN(r2)&&isFinite(r2))?r2:null;}catch(e){return null;}
+  };
+
+  /* 민감도 1: 금리 × 시세 */
+  const g1=document.getElementById('irr-sensG');
+  if(g1){
+    g1.innerHTML=buildSens(
+      [0.03,0.035,0.045,0.055,0.065],[0.01,0.02,0.03,0.05,0.07],
+      'rateA','priceUp',
+      v=>'금리 '+(v*100).toFixed(1)+'%', v=>(v*100).toFixed(0)+'%',
+      overS=>calcSensIRR2({...overS, rateB:overS.rateA})
+    );
+  }
+
+  /* 민감도 2: 가치배수 × 시세 */
+  const g2=document.getElementById('irr-sensG2');
+  if(g2){
+    g2.innerHTML=buildSens(
+      [1.2,1.5,1.8,2.2,2.8],[0.01,0.02,0.03,0.05,0.07],
+      'valueMult','priceUp',
+      v=>v.toFixed(1)+'x', v=>(v*100).toFixed(0)+'%',
+      calcSensIRR2
+    );
+    // 가치배수 테이블 헤더 첫 셀 수정
+    const firstTh=g2.querySelector('th:first-child');
+    if(firstTh) firstTh.textContent='배수 ╲ 시세';
+  }
+
+  /* ── 시각화 차트 (원본 SVG 스타일) ── */
+  const ca=document.getElementById('irr-chartArea');
+  if(ca){
+    const mx=Math.max(...rows.map(r=>Math.abs(r.net)),0.01);
+    const W2=Math.max(500,rows.length*52);
+    const H=160,MID=H/2,barW=36,gap=16;
+    let svgBars='',svgXlbl='';
+    rows.forEach((r,i)=>{
+      const x=i*(barW+gap)+gap;
+      const barH=Math.max(Math.abs(r.net)/mx*(MID-18),1);
+      const isPos=r.net>=0;
+      const fill=isPos?'#22c98a':'#e84040';
+      const y=isPos?MID-barH:MID;
+      const label=fSmall(Math.abs(r.net));
+      svgBars+=`<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${fill}" rx="3" opacity=".85"/>`;
+      svgBars+=`<text x="${x+barW/2}" y="${isPos?y-4:y+barH+12}" text-anchor="middle" font-size="8" fill="${fill}" font-family="monospace">${isPos?'+':'−'}${label}</text>`;
+      svgXlbl+=`<text x="${x+barW/2}" y="${H-2}" text-anchor="middle" font-size="8" fill="#4a5270">${r.cy}</text>`;
+    });
+    ca.innerHTML=`<svg viewBox="0 0 ${W2} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${H}px;overflow:visible">
+      <line x1="0" y1="${MID}" x2="${W2}" y2="${MID}" stroke="#2a3050" stroke-width="1"/>
+      ${svgBars}${svgXlbl}
+    </svg>`;
+  }
+
+
   box.innerHTML = `
 
   <!-- ① IRR 대형 + KPI ───────────────────────────────────── -->
@@ -2253,141 +2387,8 @@ function irrCalcRun(){
 `;
 
   /* ── 민감도 분석 채우기 ── */
-  /* ── iRow 헬퍼 (원본 스타일) ── */
-  const iRow=(lbl,val,color)=>{
-    const col={red:'var(--red)',green:'var(--green)',blue:'var(--blue)',yellow:'var(--yellow)'}[color]||'var(--t1)';
-    return`<div style="display:flex;justify-content:space-between;align-items:center;
-      padding:6px 0;border-bottom:1px solid rgba(34,38,54,.4);font-size:12px">
-      <span style="color:#8890aa;font-weight:500">${lbl}</span>
-      <span style="font-family:var(--mono);font-size:12.5px;font-weight:600;color:${col}">${val}</span>
-    </div>`;
-  };
-
-  /* ── 민감도 테이블 빌더 (원본 스타일) ── */
-  const irrMin=-0.05, irrMed=0.05, irrHigh=0.12;
-  const sensCell=(v,isCurrentRow,isCurrentCol)=>{
-    const highlight=isCurrentRow&&isCurrentCol;
-    if(v===null) return`<td style="text-align:center;color:var(--t4);font-size:10px;padding:7px 10px;border:1px solid rgba(42,48,80,.35)">—</td>`;
-    const pct=(v*100).toFixed(1)+'%';
-    let bg,tc,bord;
-    if(v<0){         bg='rgba(240,56,96,.22)'; tc='#ff6b6b'; bord='rgba(240,56,96,.4)';}
-    else if(v<irrMed){bg='rgba(245,188,48,.14)';tc='#f5bc30'; bord='rgba(245,188,48,.3)';}
-    else if(v<irrHigh){bg='rgba(34,209,134,.14)';tc='#22d186'; bord='rgba(34,209,134,.3)';}
-    else{              bg='rgba(34,209,134,.25)';tc='#00ff9d'; bord='rgba(34,209,134,.5)';}
-    const ring=highlight?`box-shadow:inset 0 0 0 2px ${bord};`:'';
-    return`<td style="text-align:center;background:${bg};border:1px solid ${bord};
-      font-family:var(--mono);font-size:11.5px;color:${tc};font-weight:700;
-      padding:7px 10px;${ring}">${pct}</td>`;
-  };
-
-  const buildSens=(rowSteps,colSteps,rowKey,colKey,rowFmt,colFmt,calcFn)=>{
-    const curRow=S[rowKey], curCol=S[colKey];
-    const nRow=rowSteps.reduce((bi,v,i)=>Math.abs(v-curRow)<Math.abs(rowSteps[bi]-curRow)?i:bi,0);
-    const nCol=colSteps.reduce((bi,v,i)=>Math.abs(v-curCol)<Math.abs(colSteps[bi]-curCol)?i:bi,0);
-    let t=`<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:var(--s3)">
-      <th style="padding:8px 12px;text-align:left;font-size:10px;color:#8890aa;border:1px solid var(--border2);font-weight:600">금리 ╲ 시세</th>
-      ${colSteps.map((c,ci)=>`<th style="padding:8px 10px;text-align:center;font-size:10px;
-        color:${ci===nCol?'var(--t1)':'#8890aa'};background:${ci===nCol?'rgba(59,127,255,.12)':'var(--s3)'};
-        border:1px solid ${ci===nCol?'rgba(59,127,255,.3)':'var(--border2)'};font-weight:600">${colFmt(c)}</th>`).join('')}
-    </tr></thead><tbody>`;
-    rowSteps.forEach((rv,ri)=>{
-      t+=`<tr><td style="padding:8px 12px;font-family:var(--mono);font-size:10.5px;font-weight:600;
-        color:${ri===nRow?'var(--t1)':'#8890aa'};background:${ri===nRow?'rgba(59,127,255,.08)':'var(--s2)'};
-        border:1px solid ${ri===nRow?'rgba(59,127,255,.25)':'var(--border2)'}white-space:nowrap">${rowFmt(rv)}</td>`;
-      colSteps.forEach((cv,ci)=>{
-        const ov={[rowKey]:rv,[colKey]:cv};
-        t+=sensCell(calcFn(ov),ri===nRow,ci===nCol);
-      });
-      t+='</tr>';
-    });
-    return t+'</tbody></table>';
-  };
-
-  const calcSensIRR2=(overS)=>{
-    const so={...S,...overS};
-    const cc2=(so.constCost+so.designCost)/W;
-    const eq2=buyOk-loanOk-depOk+buyOk*so.acqTaxRate;
-    if(eq2<=0)return null;
-    const avgR2=(so.rateA+so.rateB)/2;
-    const annI2=loanOk*avgR2;
-    const pfL2=cc2*so.pfRatio;
-    const pfI2=pfL2*so.pfRate;
-    const cfs=[-eq2];
-    for(let yr=1;yr<=so.totalYrs;yr++){
-      const arb2=(totalRent/W)*12;
-      if(yr<=so.holdYrs){
-        cfs.push(arb2*Math.pow(1+so.rentUp,yr-1)*(1-so.vacancy)-annI2-holdTaxOk.totalTax);
-      }else if(yr<=so.holdYrs+constY){
-        cfs.push(-annI2-pfI2-holdTaxOk.totalTax*0.5-(cc2-pfL2)/constY);
-      }else{
-        const yac=yr-so.holdYrs-constY;
-        const nr2=newRentAok*12*Math.pow(1+so.rentUp,yac-1)*(1-so.newVacancy);
-        cfs.push(nr2-annI2-pfI2-newHoldTaxOk.totalTax);
-      }
-      if(yr===so.totalYrs){
-        const sp2=buyOk*so.valueMult*Math.pow(1+so.priceUp,so.totalYrs);
-        const g2=sp2-buyOk-cc2-buyOk*so.acqTaxRate;
-        const la2=Math.max(0,g2)*0.15;
-        const tg2=Math.max(0,g2-la2);
-        const cgt2=progressiveTaxCalc(Math.max(0,tg2-0.025))*1.1;
-        const ns2=sp2-loanOk-pfL2-cgt2+depOk;
-        cfs[cfs.length-1]+= ns2;
-      }
-    }
-    try{const r2=irrNR(cfs);return(!isNaN(r2)&&isFinite(r2))?r2:null;}catch(e){return null;}
-  };
-
-  /* 민감도 1: 금리 × 시세 */
-  const g1=document.getElementById('irr-sensG');
-  if(g1){
-    g1.innerHTML=buildSens(
-      [0.03,0.035,0.045,0.055,0.065],[0.01,0.02,0.03,0.05,0.07],
-      'rateA','priceUp',
-      v=>'금리 '+(v*100).toFixed(1)+'%', v=>(v*100).toFixed(0)+'%',
-      overS=>calcSensIRR2({...overS, rateB:overS.rateA})
-    );
-  }
-
-  /* 민감도 2: 가치배수 × 시세 */
-  const g2=document.getElementById('irr-sensG2');
-  if(g2){
-    g2.innerHTML=buildSens(
-      [1.2,1.5,1.8,2.2,2.8],[0.01,0.02,0.03,0.05,0.07],
-      'valueMult','priceUp',
-      v=>v.toFixed(1)+'x', v=>(v*100).toFixed(0)+'%',
-      calcSensIRR2
-    );
-    // 가치배수 테이블 헤더 첫 셀 수정
-    const firstTh=g2.querySelector('th:first-child');
-    if(firstTh) firstTh.textContent='배수 ╲ 시세';
-  }
-
-  /* ── 시각화 차트 (원본 SVG 스타일) ── */
-  const ca=document.getElementById('irr-chartArea');
-  if(ca){
-    const mx=Math.max(...rows.map(r=>Math.abs(r.net)),0.01);
-    const W2=Math.max(500,rows.length*52);
-    const H=160,MID=H/2,barW=36,gap=16;
-    let svgBars='',svgXlbl='';
-    rows.forEach((r,i)=>{
-      const x=i*(barW+gap)+gap;
-      const barH=Math.max(Math.abs(r.net)/mx*(MID-18),1);
-      const isPos=r.net>=0;
-      const fill=isPos?'#22c98a':'#e84040';
-      const y=isPos?MID-barH:MID;
-      const label=fSmall(Math.abs(r.net));
-      svgBars+=`<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${fill}" rx="3" opacity=".85"/>`;
-      svgBars+=`<text x="${x+barW/2}" y="${isPos?y-4:y+barH+12}" text-anchor="middle" font-size="8" fill="${fill}" font-family="monospace">${isPos?'+':'−'}${label}</text>`;
-      svgXlbl+=`<text x="${x+barW/2}" y="${H-2}" text-anchor="middle" font-size="8" fill="#4a5270">${r.cy}</text>`;
-    });
-    ca.innerHTML=`<svg viewBox="0 0 ${W2} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${H}px;overflow:visible">
-      <line x1="0" y1="${MID}" x2="${W2}" y2="${MID}" stroke="#2a3050" stroke-width="1"/>
-      ${svgBars}${svgXlbl}
-    </svg>`;
-  }
 
 }
-
 /* 에러 박스 */
 function irrErrBox(msg){
   return`<div style="background:rgba(240,56,96,.08);border:1px solid rgba(240,56,96,.2);border-radius:7px;padding:12px 16px;color:var(--red);font-size:12px;margin-top:16px">⚠️ ${msg}</div>`;
