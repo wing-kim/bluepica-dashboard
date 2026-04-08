@@ -256,6 +256,110 @@ td:first-child{color:var(--t1);font-weight:500}
 .irr-row-item:last-child{border-bottom:none}
 
 /* ═══════════════════════════════════════════════════
+   IRR 결과 영역 — 위 필지카드/계산기와 동일 디자인 시스템
+═══════════════════════════════════════════════════ */
+.irr-res-wrap{display:flex;flex-direction:column;gap:14px;margin-top:20px}
+
+/* KPI 4개 행 */
+.irr-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:900px){.irr-kpi-row{grid-template-columns:repeat(2,1fr)}}
+.irr-kpi{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
+  padding:16px;text-align:center;position:relative;overflow:hidden}
+.irr-kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.irr-kpi.kc1::before{background:linear-gradient(90deg,var(--blue),#6c48f5)}
+.irr-kpi.kc2::before{background:linear-gradient(90deg,var(--green),#059669)}
+.irr-kpi.kc3::before{background:linear-gradient(90deg,var(--yellow),#d97706)}
+.irr-kpi.kc4::before{background:linear-gradient(90deg,var(--purple),#7c3aed)}
+.irr-kpi .kpi-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.irr-kpi .kpi-num{font-family:var(--mono);font-size:26px;font-weight:700;line-height:1.1}
+.irr-kpi .kpi-num.pos{color:var(--green)}.irr-kpi .kpi-num.neg{color:var(--red)}
+.irr-kpi .kpi-num.neu{color:var(--blue)}
+.irr-kpi .kpi-sub{font-size:10px;color:var(--t3);margin-top:4px}
+
+/* 섹션 공통 패널 */
+.irr-sec{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.irr-sec-head{padding:11px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:var(--t1)}
+.irr-sec-ic{width:22px;height:22px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.irr-sec-body{padding:16px}
+
+/* 투자구조/EXIT 2컬럼 */
+.irr-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.irr-detail-grid{grid-template-columns:1fr}}
+.irr-detail-box{background:var(--s2);border:1px solid var(--border);border-radius:var(--r2);padding:16px}
+.irr-detail-title{font-size:10px;color:var(--t3);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:10px;font-weight:600}
+
+/* 행 아이템 */
+.irr-item{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;border-bottom:1px solid rgba(34,38,54,.45);font-size:12px}
+.irr-item:last-child{border-bottom:none}
+.irr-item .ik{color:var(--t3)}
+.irr-item .iv{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--t1)}
+.irr-item .iv.pos{color:var(--green)}.irr-item .iv.neg{color:var(--red)}
+.irr-item .iv.neu{color:var(--blue)}
+.irr-item-sub{padding-left:12px}
+.irr-item-sub .ik{font-size:10.5px;color:var(--t4)}
+.irr-item-sub .iv{font-size:10.5px;color:var(--t3)}
+.irr-item-bold .ik{color:var(--t2);font-weight:700}
+.irr-item-bold .iv{font-size:13px}
+.irr-divider{height:1px;background:var(--border);margin:7px 0}
+.irr-total-box{display:flex;justify-content:space-between;align-items:center;
+  padding:9px 12px;border-radius:6px;margin-top:6px}
+.irr-total-box .ik{font-weight:700;color:var(--t1);font-size:13px}
+.irr-total-box .iv{font-family:var(--mono);font-weight:700;font-size:14px}
+
+/* 탭 */
+.irr-tabs{display:flex;gap:2px;background:var(--s2);border-radius:var(--r2);
+  padding:3px;margin-bottom:12px}
+.irr-tab{flex:1;padding:7px 10px;border:none;background:transparent;
+  color:var(--t3);font-family:var(--sans);font-size:11px;font-weight:500;
+  border-radius:5px;cursor:pointer;transition:.15s}
+.irr-tab.on{background:var(--s1);color:var(--t1);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.irr-tc{display:none}.irr-tc.on{display:block}
+
+/* 캐시플로우 테이블 */
+.irr-cf-wrap{overflow-x:auto}
+.irr-cf-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.irr-cf-tbl th{padding:8px 10px;text-align:right;font-size:9.5px;font-weight:600;
+  color:var(--t3);border-bottom:2px solid var(--border2);text-transform:uppercase;
+  letter-spacing:.4px;white-space:nowrap;background:var(--s2)}
+.irr-cf-tbl th:first-child{text-align:center}
+.irr-cf-tbl th:nth-child(2){text-align:left}
+.irr-cf-tbl td{padding:8px 10px;text-align:right;font-family:var(--mono);
+  font-size:11px;border-bottom:1px solid rgba(34,38,54,.4);white-space:nowrap}
+.irr-cf-tbl td:first-child{text-align:center;font-weight:700;color:var(--blue)}
+.irr-cf-tbl td:nth-child(2){text-align:left;font-family:var(--sans);font-size:10px;color:var(--t2)}
+.irr-cf-tbl tr:hover{background:rgba(59,127,255,.04)}
+.irr-cf-tbl .cf-init{background:var(--s2);font-weight:700}
+
+/* 민감도 셀 */
+.irr-sens-grid{display:grid;gap:2px;font-size:11px;margin-bottom:6px}
+.irr-sens-cell{padding:8px 4px;text-align:center;border-radius:3px;
+  font-family:var(--mono);font-weight:700;font-size:11px}
+.irr-sens-hdr{background:var(--s2);font-weight:700;color:var(--t2);
+  font-family:var(--sans);font-size:10px}
+.irr-sens-row-hdr{background:var(--s2);font-size:10px;color:var(--t2);
+  text-align:right;padding-right:8px;font-family:var(--sans)}
+.irr-sens-hi{color:#22d186;background:rgba(34,209,134,.2)}
+.irr-sens-mid{color:var(--t2);background:rgba(34,209,134,.07)}
+.irr-sens-lo{color:var(--red);background:rgba(240,56,96,.12)}
+.irr-sens-hl{outline:2px solid var(--blue);outline-offset:-2px}
+
+/* 차트 */
+.irr-chart-area{height:200px;display:flex;align-items:flex-end;gap:6px;padding:16px 8px 0}
+.irr-chart-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.irr-chart-bwrap{width:100%;height:180px;display:flex;align-items:flex-end;
+  justify-content:center;position:relative}
+.irr-chart-bar{width:65%;border-radius:3px 3px 0 0;transition:height .4s;position:relative;min-height:2px}
+.irr-chart-bar.pos{background:linear-gradient(180deg,var(--green),#15803d)}
+.irr-chart-bar.neg{background:linear-gradient(180deg,var(--red),#be123c)}
+.irr-chart-val{position:absolute;top:-16px;white-space:nowrap;left:50%;
+  transform:translateX(-50%);font-family:var(--mono);font-size:9px;color:var(--t3)}
+.irr-chart-lbl{font-size:10px;color:var(--t3)}
+
+/* ═══════════════════════════════════════════════════
    LEASE — 슬림 레이아웃 (건물별 그룹화)
    UI 슬림화 + 색상 강화 / 데이터 로직 무수정
 ═══════════════════════════════════════════════════ */
@@ -1637,8 +1741,8 @@ function calcPropTax(landValOk, totalBuy){
 
 /* 탭 전환 (결과 내 탭) */
 function irrSTab(id,btn){
-  document.querySelectorAll('.irr-rtc').forEach(t=>t.classList.remove('on'));
-  document.querySelectorAll('.irr-rtab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.irr-tc').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.irr-tab').forEach(b=>b.classList.remove('on'));
   const el=document.getElementById('irr-tab-'+id);
   if(el)el.classList.add('on');
   btn.classList.add('on');
@@ -1879,52 +1983,47 @@ function irrCalcRun(){
   box.style.display = 'block';
   const irrColor = irr&&irr>0?'var(--green)':irr&&irr<0?'var(--red)':'var(--t2)';
 
-  /* 포맷 헬퍼 */
-  const si=(lbl,val,cls='')=>`
-    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(34,38,54,.4);font-size:12px">
-      <span style="color:var(--t3)">${lbl}</span>
-      <span style="font-family:var(--mono);font-size:12px;font-weight:600;${cls?'color:'+({'pos':'var(--green)','neg':'var(--red)','neu':'var(--blue)'}[cls]||cls):''}">${val}</span>
-    </div>`;
-  const dv=`<div style="height:1px;background:var(--border);margin:7px 0"></div>`;
+  /* 행 헬퍼 — 기존 CSS 클래스 사용 */
+  const ri=(lbl,val,cls='')=>`<div class="irr-item">
+    <span class="ik">${lbl}</span>
+    <span class="iv ${cls}">${val}</span>
+  </div>`;
+  const ris=(lbl,val)=>`<span class="ik">${lbl}</span><span class="iv">${val}</span>`;
 
   box.innerHTML = `
-  <div style="margin-top:20px;display:flex;flex-direction:column;gap:14px">
+  <div class="irr-res-wrap">
 
     <!-- ① KPI 4개 -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-      <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;position:relative;overflow:hidden">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue),#6c48f5)"></div>
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">IRR</div>
-        <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:${irrColor}">${irr!=null?(irr*100).toFixed(1)+'%':'N/A'}</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px">${S.totalYrs}년 기준</div>
+    <div class="irr-kpi-row">
+      <div class="irr-kpi kc1">
+        <div class="kpi-lbl">IRR</div>
+        <div class="kpi-num ${irr!=null&&irr>0?'pos':irr!=null&&irr<0?'neg':''}">${irr!=null?(irr*100).toFixed(1)+'%':'N/A'}</div>
+        <div class="kpi-sub">${S.totalYrs}년 기준</div>
       </div>
-      <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;position:relative;overflow:hidden">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),#059669)"></div>
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Equity Multiple</div>
-        <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:${em>=1?'var(--green)':'var(--red)'}">${em.toFixed(2)}x</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px">투자원금 대비</div>
+      <div class="irr-kpi kc2">
+        <div class="kpi-lbl">Equity Multiple</div>
+        <div class="kpi-num ${em>=1?'pos':'neg'}">${em.toFixed(2)}x</div>
+        <div class="kpi-sub">투자원금 대비</div>
       </div>
-      <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;position:relative;overflow:hidden">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--yellow),#d97706)"></div>
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Cash-on-Cash</div>
-        <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:${cocR>=0?'var(--green)':'var(--red)'}">${cocR.toFixed(1)}%</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px">보유기간 연평균</div>
+      <div class="irr-kpi kc3">
+        <div class="kpi-lbl">Cash-on-Cash</div>
+        <div class="kpi-num ${cocR>=0?'pos':'neg'}">${cocR.toFixed(1)}%</div>
+        <div class="kpi-sub">보유기간 연평균</div>
       </div>
-      <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;position:relative;overflow:hidden">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),#7c3aed)"></div>
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">자기자본 투입</div>
-        <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--blue)">${fSmall(equity)}</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px">매입시 순투입</div>
+      <div class="irr-kpi kc4">
+        <div class="kpi-lbl">자기자본 투입</div>
+        <div class="kpi-num" style="color:var(--blue)">${fSmall(equity)}</div>
+        <div class="kpi-sub">매입시 순투입</div>
       </div>
     </div>
 
     <!-- ② 타임라인 -->
-    <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
-      <div style="padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px">
-        <div style="width:22px;height:22px;border-radius:6px;background:rgba(34,211,238,.12);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px">◷</div>
+    <div class="irr-sec">
+      <div class="irr-sec-head">
+        <div class="irr-sec-ic" style="background:rgba(34,211,238,.12);color:var(--blue)">◷</div>
         타임라인 (2026 ~ ${2025+S.totalYrs}년)
       </div>
-      <div style="padding:16px">
+      <div class="irr-sec-body">
         <div style="display:flex;border-radius:7px;overflow:hidden;height:28px">
           <div style="flex:${S.holdYrs};background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">보유 ${S.holdYrs}년</div>
           <div style="flex:${constY};background:#d97706;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">신축 ${constY}년</div>
@@ -1934,140 +2033,120 @@ function irrCalcRun(){
     </div>
 
     <!-- ③ 투자구조 + EXIT 2컬럼 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div style="background:var(--s2);border-radius:9px;padding:14px">
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">투자 구조</div>
-        ${si('총 매입가',fBig(buyOk)+'억')}
-        ${si('취득세 ('+( S.acqTaxRate*100).toFixed(1)+'%)',fBig(acqTax)+'억','neg')}
-        ${si('매입 대출',fBig(loanOk)+'억')}
-        ${si('기존 보증금',fBig(depOk)+'억')}
-        ${dv}
-        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">
-          <span style="color:var(--t2);font-weight:700">순 자기자본</span>
-          <span style="font-family:var(--mono);font-weight:700;color:var(--blue)">${fBig(equity)}억</span>
+    <div class="irr-detail-grid">
+      <div class="irr-detail-box">
+        <div class="irr-detail-title">투자 구조</div>
+        ${ri('총 매입가', fBig(buyOk)+'억')}
+        ${ri('취득세 ('+(S.acqTaxRate*100).toFixed(1)+'%)', fBig(acqTax)+'억', 'neg')}
+        ${ri('매입 대출', fBig(loanOk)+'억')}
+        ${ri('기존 보증금', fBig(depOk)+'억')}
+        <div class="irr-divider"></div>
+        <div class="irr-item irr-item-bold">
+          <span class="ik">순 자기자본</span>
+          <span class="iv neu">${fBig(equity)}억</span>
         </div>
-        ${si('LTV', (loanOk/buyOk*100).toFixed(1)+'%')}
-        ${dv}
-        ${si('연 이자 (매입대출)','-'+fBig(annualInterest)+'억','neg')}
-        ${si('연 임대수익','+'+fBig(annualRent)+'억','pos')}
-        ${si('연 보유세 (자동)','-'+fBig(holdTaxOk.totalTax)+'억','neg')}
-        <div style="padding-left:10px">
-          ${si('├ 재산세 (건물+토지)',fBig(holdTaxOk.bldgTax+holdTaxOk.landTax)+'억')}
-          ${si('└ 도시지역분+교육세',fBig(holdTaxOk.urbanTax+holdTaxOk.eduTax)+'억')}
-        </div>
-        ${dv}
-        ${si('신축 총비용','-'+fBig(constCostOk)+'억','neg')}
-        ${si('신축대출 ('+(S.pfRatio*100).toFixed(0)+'%)','+'+fBig(constLoan)+'억')}
-        ${si('신축 자기자본 투입','-'+fBig(constEquity)+'억','neg')}
-        ${si('신축대출 연 이자 (PF)','-'+fBig(constLoanInt)+'억','neg')}
-        ${dv}
-        ${si('신축 후 연 임대수익','+'+fBig(newAnnualRent)+'억','pos')}
-        ${si('신축 후 연 보유세','-'+fBig(newHoldTaxOk.totalTax)+'억','neg')}
+        ${ri('LTV', (loanOk/buyOk*100).toFixed(1)+'%')}
+        <div class="irr-divider"></div>
+        ${ri('연 이자 (매입대출)', '-'+fBig(annualInterest)+'억', 'neg')}
+        ${ri('연 임대수익', '+'+fBig(annualRent)+'억', 'pos')}
+        ${ri('연 보유세 (자동)', '-'+fBig(holdTaxOk.totalTax)+'억', 'neg')}
+        <div class="irr-item irr-item-sub"><span class="ik">├ 재산세 (건물+토지)</span><span class="iv">${fBig(holdTaxOk.bldgTax+holdTaxOk.landTax)}억</span></div>
+        <div class="irr-item irr-item-sub"><span class="ik">└ 도시지역분+교육세</span><span class="iv">${fBig(holdTaxOk.urbanTax+holdTaxOk.eduTax)}억</span></div>
+        <div class="irr-divider"></div>
+        ${ri('신축 총비용', '-'+fBig(constCostOk)+'억', 'neg')}
+        ${ri('신축대출 ('+(S.pfRatio*100).toFixed(0)+'%)', '+'+fBig(constLoan)+'억')}
+        ${ri('신축 자기자본 투입', '-'+fBig(constEquity)+'억', 'neg')}
+        ${ri('신축대출 연 이자 (PF)', '-'+fBig(constLoanInt)+'억', 'neg')}
+        <div class="irr-divider"></div>
+        ${ri('신축 후 연 임대수익', '+'+fBig(newAnnualRent)+'억', 'pos')}
+        ${ri('신축 후 연 보유세', '-'+fBig(newHoldTaxOk.totalTax)+'억', 'neg')}
       </div>
-
-      <div style="background:var(--s2);border-radius:9px;padding:14px">
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">EXIT (${2025+S.totalYrs}년)</div>
-        ${si('예상 자산가치',fBig(lastR.asset)+'억','pos')}
-        ${si('신축 비용','-'+fBig(constCostOk)+'억','neg')}
-        ${dv}
-        ${si('양도차익',fBig(lastR.gain||0)+'억',lastR.gain>=0?'pos':'neg')}
-        ${si('장기보유특별공제','-'+fBig(lastR.lthdAmt||0)+'억','pos')}
-        <div style="padding-left:10px;font-size:10px;color:var(--t3)">
-          ${si('├ 529 ('+lastR.holdYrs529+'년) '+(((lastR.lthd529||0)*100).toFixed(0))+'%','')}
-          ${si('└ 529-8 ('+lastR.holdYrs5298+'년) '+(((lastR.lthd5298||0)*100).toFixed(0))+'%','')}
-          ${si('가중평균 공제율',(((lastR.lthdAvg||0)*100).toFixed(1))+'%','')}
+      <div class="irr-detail-box">
+        <div class="irr-detail-title">EXIT (${2025+S.totalYrs}년)</div>
+        ${ri('예상 자산가치', fBig(lastR.asset)+'억', 'pos')}
+        ${ri('신축 비용', '-'+fBig(constCostOk)+'억', 'neg')}
+        <div class="irr-divider"></div>
+        ${ri('양도차익', fBig(lastR.gain||0)+'억', (lastR.gain||0)>=0?'pos':'neg')}
+        ${ri('장기보유특별공제', '-'+fBig(lastR.lthdAmt||0)+'억', 'pos')}
+        <div class="irr-item irr-item-sub"><span class="ik">├ 529 (${lastR.holdYrs529}년) ${((lastR.lthd529||0)*100).toFixed(0)}%</span><span class="iv"></span></div>
+        <div class="irr-item irr-item-sub"><span class="ik">└ 529-8 (${lastR.holdYrs5298}년) ${((lastR.lthd5298||0)*100).toFixed(0)}%</span><span class="iv"></span></div>
+        <div class="irr-item irr-item-sub"><span class="ik">가중평균 공제율</span><span class="iv">${((lastR.lthdAvg||0)*100).toFixed(1)}%</span></div>
+        ${ri('과세표준', fBig(lastR.taxableGain||0)+'억')}
+        ${ri('양도세 (누진)', '-'+fBig(lastR.progressiveTaxOnly||0)+'억', 'neg')}
+        ${ri('+지방소득세 (10%)', '-'+fBig((lastR.progressiveTaxOnly||0)*0.1)+'억', 'neg')}
+        <div class="irr-divider"></div>
+        ${ri('매입대출 상환', '-'+fBig(loanOk)+'억', 'neg')}
+        ${ri('신축대출 상환', '-'+fBig(constLoan)+'억', 'neg')}
+        ${ri('보증금 반환', '+'+fBig(depOk)+'억')}
+        <div class="irr-divider"></div>
+        <div class="irr-item irr-item-bold">
+          <span class="ik">순 회수금</span><span class="iv pos">${fBig(lastR.ns||0)}억</span>
         </div>
-        ${si('과세표준',fBig(lastR.taxableGain||0)+'억')}
-        ${si('양도세 (누진)','-'+fBig(lastR.progressiveTaxOnly||0)+'억','neg')}
-        ${si('+지방소득세 (10%)','-'+fBig((lastR.progressiveTaxOnly||0)*0.1)+'억','neg')}
-        ${dv}
-        ${si('매입대출 상환','-'+fBig(loanOk)+'억','neg')}
-        ${si('신축대출 상환','-'+fBig(constLoan)+'억','neg')}
-        ${si('보증금 반환','+'+fBig(depOk)+'억')}
-        ${dv}
-        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">
-          <span style="color:var(--t2);font-weight:700">순 회수금</span>
-          <span style="font-family:var(--mono);font-weight:700;color:var(--green)">${fBig(lastR.ns||0)}억</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;margin-top:4px;background:${totalProfit>=0?'rgba(34,209,134,.07)':'rgba(240,56,96,.07)'};border-radius:6px;padding:8px 10px">
-          <span style="font-weight:700;color:var(--t1)">총 수익</span>
-          <span style="font-family:var(--mono);font-weight:700;color:${totalProfit>=0?'var(--green)':'var(--red)'}">${fBig(totalProfit)}억</span>
+        <div class="irr-total-box" style="background:${totalProfit>=0?'rgba(34,209,134,.07)':'rgba(240,56,96,.07)'};border:1px solid ${totalProfit>=0?'rgba(34,209,134,.2)':'rgba(240,56,96,.2)'}">
+          <span class="ik">총 수익</span>
+          <span class="iv" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">${fBig(totalProfit)}억</span>
         </div>
       </div>
     </div>
 
     <!-- ④ 상세 분석 탭 -->
-    <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
-      <div style="padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px">
-        <div style="width:22px;height:22px;border-radius:6px;background:rgba(245,188,48,.12);color:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:12px">📋</div>
+    <div class="irr-sec">
+      <div class="irr-sec-head">
+        <div class="irr-sec-ic" style="background:rgba(245,188,48,.12);color:var(--yellow)">📋</div>
         상세 분석
       </div>
-      <div style="padding:14px">
-        <div style="display:flex;gap:2px;background:var(--s2);border-radius:7px;padding:3px;margin-bottom:12px">
-          <button class="irr-rtab on" onclick="irrSTab('cf',this)" style="flex:1;padding:7px 10px;border:none;background:var(--s1);color:var(--t1);font-family:var(--sans);font-size:11px;font-weight:500;border-radius:5px;cursor:pointer">캐시플로우</button>
-          <button class="irr-rtab" onclick="irrSTab('sn',this)" style="flex:1;padding:7px 10px;border:none;background:transparent;color:var(--t3);font-family:var(--sans);font-size:11px;font-weight:500;border-radius:5px;cursor:pointer">민감도 분석</button>
-          <button class="irr-rtab" onclick="irrSTab('ch',this)" style="flex:1;padding:7px 10px;border:none;background:transparent;color:var(--t3);font-family:var(--sans);font-size:11px;font-weight:500;border-radius:5px;cursor:pointer">시각화</button>
+      <div class="irr-sec-body">
+        <div class="irr-tabs">
+          <button class="irr-tab on" onclick="irrSTab('cf',this)">캐시플로우</button>
+          <button class="irr-tab" onclick="irrSTab('sn',this)">민감도 분석</button>
+          <button class="irr-tab" onclick="irrSTab('ch',this)">시각화</button>
         </div>
-
-        <!-- 캐시플로우 탭 -->
-        <div class="irr-rtc on" id="irr-tab-cf">
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:11px">
-              <thead>
-                <tr style="background:var(--s2)">
-                  <th style="padding:8px 10px;text-align:center;font-size:9.5px;color:var(--t3);border-bottom:2px solid var(--border)">연도</th>
-                  <th style="padding:8px 10px;text-align:left;font-size:9.5px;color:var(--t3);border-bottom:2px solid var(--border)">Phase</th>
-                  <th style="padding:8px 10px;text-align:right;font-size:9.5px;color:var(--green);border-bottom:2px solid var(--border)">임대수익</th>
-                  <th style="padding:8px 10px;text-align:right;font-size:9.5px;color:var(--red);border-bottom:2px solid var(--border)">매입이자</th>
-                  <th style="padding:8px 10px;text-align:right;font-size:9.5px;color:var(--orange);border-bottom:2px solid var(--border)">PF이자</th>
-                  <th style="padding:8px 10px;text-align:right;font-size:9.5px;color:var(--yellow);border-bottom:2px solid var(--border)">보유세</th>
-                  <th style="padding:8px 10px;text-align:right;font-size:9.5px;color:var(--red);border-bottom:2px solid var(--border)">건축비</th>
-                  <th style="padding:8px 10px;text-align:right;font-size:9.5px;color:var(--blue);border-bottom:2px solid var(--border)">순 CF</th>
-                  <th style="padding:8px 10px;text-align:right;font-size:9.5px;color:var(--t3);border-bottom:2px solid var(--border)">누적</th>
-                  <th style="padding:8px 10px;text-align:right;font-size:9.5px;color:var(--blue);border-bottom:2px solid var(--border)">자산가치</th>
-                </tr>
-              </thead>
+        <div class="irr-tc on" id="irr-tab-cf">
+          <div class="irr-cf-wrap">
+            <table class="irr-cf-tbl">
+              <thead><tr>
+                <th>연도</th><th>Phase</th>
+                <th style="color:var(--green)">임대수익</th>
+                <th style="color:var(--red)">매입이자</th>
+                <th style="color:var(--orange)">PF이자</th>
+                <th style="color:var(--yellow)">보유세</th>
+                <th style="color:var(--red)">건축비</th>
+                <th style="color:var(--blue)">순 CF</th>
+                <th>누적</th>
+                <th style="color:var(--blue)">자산가치</th>
+              </tr></thead>
               <tbody>
-                <tr style="background:var(--s2);font-weight:700">
-                  <td style="padding:8px 10px;text-align:center;font-family:var(--mono);color:var(--blue)">2025</td>
-                  <td style="padding:8px 10px;font-size:10px">매입</td>
-                  <td style="padding:8px 10px;text-align:right">—</td><td style="padding:8px 10px;text-align:right">—</td>
-                  <td style="padding:8px 10px;text-align:right">—</td><td style="padding:8px 10px;text-align:right">—</td>
-                  <td style="padding:8px 10px;text-align:right">—</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--red)">-${fSmall(equity)}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--red)">-${fSmall(equity)}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--blue)">${fSmall(buyOk)}</td>
+                <tr class="cf-init">
+                  <td>2025</td><td>매입</td>
+                  <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+                  <td style="color:var(--red)">-${fSmall(equity)}</td>
+                  <td style="color:var(--red)">-${fSmall(equity)}</td>
+                  <td style="color:var(--blue)">${fSmall(buyOk)}</td>
                 </tr>
-                ${rows.map(r=>`
-                <tr style="border-bottom:1px solid rgba(34,38,54,.5)">
-                  <td style="padding:8px 10px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--blue)">${r.cy}</td>
-                  <td style="padding:8px 10px;font-size:10px;color:var(--t2)">${r.phase}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:${r.rental>0?'var(--green)':'var(--t4)'}">${r.rental>0?'+'+fSmall(r.rental):'—'}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--red)">${fSmall(Math.abs(r.interest))}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:${r.constInt<0?'var(--orange)':'var(--t4)'}">${r.constInt<0?fSmall(Math.abs(r.constInt)):'—'}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--yellow)">${fSmall(Math.abs(r.htax))}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:${r.ccost<0?'var(--red)':'var(--t4)'}">${r.ccost<0?fSmall(Math.abs(r.ccost)):'—'}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:${r.net>=0?'var(--green)':'var(--red)'}">${r.net>=0?'+':''}${fSmall(r.net)}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:${r.cum>=0?'var(--t2)':'var(--red)'}">${r.cum>=0?'+':''}${fSmall(r.cum)}</td>
-                  <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--blue)">${fSmall(r.asset)}</td>
+                ${rows.map(r=>`<tr>
+                  <td>${r.cy}</td><td>${r.phase}</td>
+                  <td style="color:${r.rental>0?'var(--green)':'var(--t4)'}">${r.rental>0?'+'+fSmall(r.rental):'—'}</td>
+                  <td style="color:var(--red)">-${fSmall(Math.abs(r.interest))}</td>
+                  <td style="color:${r.constInt<0?'var(--orange)':'var(--t4)'}">${r.constInt<0?'-'+fSmall(Math.abs(r.constInt)):'—'}</td>
+                  <td style="color:var(--yellow)">-${fSmall(Math.abs(r.htax))}</td>
+                  <td style="color:${r.ccost<0?'var(--red)':'var(--t4)'}">${r.ccost<0?'-'+fSmall(Math.abs(r.ccost)):'—'}</td>
+                  <td style="color:${r.net>=0?'var(--green)':'var(--red)'};font-weight:700">${r.net>=0?'+':''}${fSmall(r.net)}</td>
+                  <td style="color:${r.cum>=0?'var(--t2)':'var(--red)'}">${r.cum>=0?'+':''}${fSmall(r.cum)}</td>
+                  <td style="color:var(--blue)">${fSmall(r.asset)}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
           </div>
         </div>
-
-        <!-- 민감도 분석 탭 -->
-        <div class="irr-rtc" id="irr-tab-sn" style="display:none">
-          <div style="margin-bottom:10px;font-size:12px;color:var(--t3)">시세 상승률(가로) × 대출 평균금리(세로) 조합별 IRR</div>
-          <div id="irr-sensG" style="display:grid;grid-template-columns:auto repeat(5,1fr);gap:2px;font-size:11px"></div>
-          <div style="margin-top:16px;margin-bottom:10px;font-size:12px;color:var(--t3)">신축 가치배수(가로) × 시세 상승률(세로) 조합별 IRR</div>
-          <div id="irr-sensG2" style="display:grid;grid-template-columns:auto repeat(5,1fr);gap:2px;font-size:11px"></div>
+        <div class="irr-tc" id="irr-tab-sn">
+          <div style="margin-bottom:8px;font-size:12px;color:var(--t3)">시세 상승률(가로) × 대출 평균금리(세로) 조합별 IRR</div>
+          <div class="irr-sens-grid" id="irr-sensG" style="grid-template-columns:auto repeat(5,1fr)"></div>
+          <div style="margin-top:16px;margin-bottom:8px;font-size:12px;color:var(--t3)">신축 가치배수(가로) × 시세 상승률(세로) 조합별 IRR</div>
+          <div class="irr-sens-grid" id="irr-sensG2" style="grid-template-columns:auto repeat(5,1fr)"></div>
         </div>
-
-        <!-- 시각화 탭 -->
-        <div class="irr-rtc" id="irr-tab-ch" style="display:none">
+        <div class="irr-tc" id="irr-tab-ch">
           <div style="font-size:12px;color:var(--t3);margin-bottom:8px">연도별 순 캐시플로우 (억원)</div>
-          <div id="irr-chartArea" style="height:200px;display:flex;align-items:flex-end;gap:6px;padding:16px 8px 0"></div>
+          <div class="irr-chart-area" id="irr-chartArea"></div>
         </div>
       </div>
     </div>
@@ -2076,12 +2155,11 @@ function irrCalcRun(){
 
   /* ── 민감도 분석 채우기 ── */
   const scCell=(v,hi)=>{
-    if(v===null) return`<div style="background:var(--s2);padding:8px 4px;text-align:center;border-radius:3px;color:var(--t4);font-size:10px">—</div>`;
+    if(v===null) return`<div class="irr-sens-cell irr-sens-hdr">—</div>`;
     const pct=(v*100).toFixed(1)+'%';
-    const bg=v>=0.08?'rgba(34,209,134,.2)':v>=0?'rgba(34,209,134,.07)':'rgba(240,56,96,.12)';
-    const tc=v>=0.08?'#22d186':v>=0?'var(--t2)':'var(--red)';
-    const ring=hi?'outline:2px solid var(--blue);outline-offset:-2px;':'';
-    return`<div style="background:${bg};color:${tc};padding:8px 4px;text-align:center;border-radius:3px;font-family:var(--mono);font-weight:700;font-size:11px;${ring}">${pct}</div>`;
+    const cls=v>=0.08?'irr-sens-hi':v>=0?'irr-sens-mid':'irr-sens-lo';
+    const hl=hi?'irr-sens-hl':'';
+    return`<div class="irr-sens-cell ${cls} ${hl}">${pct}</div>`;
   };
 
   const calcSensIRR2=(overS)=>{
@@ -2121,12 +2199,12 @@ function irrCalcRun(){
   const curA=S.priceUp*100, curR=(S.rateA+S.rateB)/2*100;
   const g1=document.getElementById('irr-sensG');
   if(g1){
-    g1.innerHTML=`<div style="background:var(--s2);padding:8px 4px;border-radius:3px"></div>`;
+    g1.innerHTML=`<div class="irr-sens-cell irr-sens-hdr"></div>`;
     [1,2,3,5,7].forEach(ar=>{
-      g1.innerHTML+=`<div style="background:var(--s2);padding:8px 4px;text-align:center;border-radius:3px;font-size:10px;font-weight:700;color:var(--t2)">${ar}%</div>`;
+      g1.innerHTML+=`<div class="irr-sens-cell irr-sens-hdr">${ar}%</div>`;
     });
     [3,3.5,4.5,5.5,6.5].forEach(lr=>{
-      g1.innerHTML+=`<div style="background:var(--s2);padding:8px 4px;text-align:right;border-radius:3px;font-size:10px;color:var(--t2);padding-right:6px">금리 ${lr}%</div>`;
+      g1.innerHTML+=`<div class="irr-sens-cell irr-sens-row-hdr">금리 ${lr}%</div>`;
       [1,2,3,5,7].forEach(ar=>{
         const ti=calcSensIRR2({priceUp:ar/100,rateA:lr/100,rateB:lr/100});
         const hl=Math.abs(ar-curA)<0.5&&Math.abs(lr-curR)<0.5;
@@ -2138,12 +2216,12 @@ function irrCalcRun(){
   const curNV=S.valueMult;
   const g2=document.getElementById('irr-sensG2');
   if(g2){
-    g2.innerHTML=`<div style="background:var(--s2);padding:8px 4px;border-radius:3px"></div>`;
+    g2.innerHTML=`<div class="irr-sens-cell irr-sens-hdr"></div>`;
     [1.2,1.5,1.8,2.2,2.8].forEach(nv=>{
-      g2.innerHTML+=`<div style="background:var(--s2);padding:8px 4px;text-align:center;border-radius:3px;font-size:10px;font-weight:700;color:var(--t2)">${nv.toFixed(1)}x</div>`;
+      g2.innerHTML+=`<div class="irr-sens-cell irr-sens-hdr">${nv.toFixed(1)}x</div>`;
     });
     [1,2,3,5,7].forEach(ar=>{
-      g2.innerHTML+=`<div style="background:var(--s2);padding:8px 4px;text-align:right;border-radius:3px;font-size:10px;color:var(--t2);padding-right:6px">시세 ${ar}%</div>`;
+      g2.innerHTML+=`<div class="irr-sens-cell irr-sens-row-hdr">시세 ${ar}%</div>`;
       [1.2,1.5,1.8,2.2,2.8].forEach(nv=>{
         const ti=calcSensIRR2({priceUp:ar/100,valueMult:nv});
         const hl=Math.abs(ar-curA)<0.5&&Math.abs(nv-curNV)<0.1;
@@ -2159,22 +2237,17 @@ function irrCalcRun(){
     ca.innerHTML=rows.map(r=>{
       const h=Math.max(Math.abs(r.net)/mx*160,2);
       const pos=r.net>=0;
-      return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="width:100%;height:180px;display:flex;align-items:flex-end;justify-content:center;position:relative">
-          <div style="width:65%;border-radius:3px 3px 0 0;height:${h}px;background:${pos?'linear-gradient(180deg,var(--green),#15803d)':'linear-gradient(180deg,var(--red),#be123c)'};position:relative">
-            <div style="position:absolute;top:-16px;white-space:nowrap;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:9px;color:var(--t3)">${r.net>=0?'+':''}${fSmall(r.net)}</div>
+      return`<div class="irr-chart-col">
+        <div class="irr-chart-bwrap">
+          <div class="irr-chart-bar ${pos?'pos':'neg'}" style="height:${h}px">
+            <div class="irr-chart-val">${r.net>=0?'+':''}${fSmall(r.net)}</div>
           </div>
         </div>
-        <div style="font-size:10px;color:var(--t3)">${r.cy}</div>
+        <div class="irr-chart-lbl">${r.cy}</div>
       </div>`;
     }).join('');
   }
 
-  /* 탭 초기 스타일 동기화 */
-  document.querySelectorAll('.irr-rtab').forEach((b,i)=>{
-    if(i===0){b.style.background='var(--s1)';b.style.color='var(--t1)';}
-    else{b.style.background='transparent';b.style.color='var(--t3)';}
-  });
 }
 
 /* 에러 박스 */
