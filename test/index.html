@@ -613,6 +613,8 @@ td:first-child{color:var(--t1);font-weight:500}
 .calc-field:last-child{margin-bottom:0}
 .calc-field label{display:flex;justify-content:space-between;align-items:center;
   font-size:11px;color:var(--t3);margin-bottom:5px}
+/* 직접입력(calc-num-input)이 값을 표시하므로 label 내 뱃지는 숨김 */
+.calc-field label .calc-val-badge{display:none}
 .calc-val-badge{font-family:var(--mono);font-size:11px;color:var(--blue);
   background:rgba(59,127,255,.1);border:1px solid rgba(59,127,255,.2);
   padding:1px 7px;border-radius:3px;white-space:nowrap}
@@ -2025,9 +2027,9 @@ function irrCalcRun(){
       </div>
       <div class="irr-sec-body">
         <div style="display:flex;border-radius:7px;overflow:hidden;height:28px">
-          <div style="flex:${S.holdYrs};background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">보유 ${S.holdYrs}년</div>
-          <div style="flex:${constY};background:#d97706;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">신축 ${constY}년</div>
-          ${S.totalYrs-S.holdYrs-constY>0?`<div style="flex:${S.totalYrs-S.holdYrs-constY};background:#059669;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">운영 ${S.totalYrs-S.holdYrs-constY}년</div>`:''}
+          <div style="flex:${S.holdYrs};background:rgba(59,127,255,.85);border-radius:${constY===0&&S.totalYrs-S.holdYrs-constY===0?'7px':'7px 0 0 7px'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;letter-spacing:.3px">보유 ${S.holdYrs}년</div>
+          <div style="flex:${constY};background:rgba(245,188,48,.85);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;letter-spacing:.3px">신축 ${constY}년</div>
+          ${S.totalYrs-S.holdYrs-constY>0?`<div style="flex:${S.totalYrs-S.holdYrs-constY};background:rgba(34,209,134,.85);border-radius:0 7px 7px 0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;letter-spacing:.3px">운영 ${S.totalYrs-S.holdYrs-constY}년</div>`:''}
         </div>
       </div>
     </div>
@@ -2089,65 +2091,73 @@ function irrCalcRun(){
       </div>
     </div>
 
-    <!-- ④ 상세 분석 탭 -->
+    <!-- ④ 캐시플로우 -->
     <div class="irr-sec">
       <div class="irr-sec-head">
         <div class="irr-sec-ic" style="background:rgba(245,188,48,.12);color:var(--yellow)">📋</div>
-        상세 분석
+        캐시플로우
+      </div>
+      <div class="irr-sec-body" style="padding:0">
+        <div class="irr-cf-wrap">
+          <table class="irr-cf-tbl">
+            <thead><tr>
+              <th>연도</th><th>Phase</th>
+              <th style="color:var(--green)">임대수익</th>
+              <th style="color:var(--red)">매입이자</th>
+              <th style="color:var(--orange)">PF이자</th>
+              <th style="color:var(--yellow)">보유세</th>
+              <th style="color:var(--red)">건축비</th>
+              <th style="color:var(--blue)">순 CF</th>
+              <th>누적</th>
+              <th style="color:var(--blue)">자산가치</th>
+            </tr></thead>
+            <tbody>
+              <tr class="cf-init">
+                <td>2025</td><td>매입</td>
+                <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+                <td style="color:var(--red)">-${fSmall(equity)}</td>
+                <td style="color:var(--red)">-${fSmall(equity)}</td>
+                <td style="color:var(--blue)">${fSmall(buyOk)}</td>
+              </tr>
+              ${rows.map(r=>`<tr>
+                <td>${r.cy}</td><td>${r.phase}</td>
+                <td style="color:${r.rental>0?'var(--green)':'var(--t4)'}">${r.rental>0?'+'+fSmall(r.rental):'—'}</td>
+                <td style="color:var(--red)">-${fSmall(Math.abs(r.interest))}</td>
+                <td style="color:${r.constInt<0?'var(--orange)':'var(--t4)'}">${r.constInt<0?'-'+fSmall(Math.abs(r.constInt)):'—'}</td>
+                <td style="color:var(--yellow)">-${fSmall(Math.abs(r.htax))}</td>
+                <td style="color:${r.ccost<0?'var(--red)':'var(--t4)'}">${r.ccost<0?'-'+fSmall(Math.abs(r.ccost)):'—'}</td>
+                <td style="color:${r.net>=0?'var(--green)':'var(--red)'};font-weight:700">${r.net>=0?'+':''}${fSmall(r.net)}</td>
+                <td style="color:${r.cum>=0?'var(--t2)':'var(--red)'}">${r.cum>=0?'+':''}${fSmall(r.cum)}</td>
+                <td style="color:var(--blue)">${fSmall(r.asset)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⑤ 민감도 분석 -->
+    <div class="irr-sec">
+      <div class="irr-sec-head">
+        <div class="irr-sec-ic" style="background:rgba(240,120,48,.12);color:var(--orange)">🎯</div>
+        민감도 분석
       </div>
       <div class="irr-sec-body">
-        <div class="irr-tabs">
-          <button class="irr-tab on" onclick="irrSTab('cf',this)">캐시플로우</button>
-          <button class="irr-tab" onclick="irrSTab('sn',this)">민감도 분석</button>
-          <button class="irr-tab" onclick="irrSTab('ch',this)">시각화</button>
-        </div>
-        <div class="irr-tc on" id="irr-tab-cf">
-          <div class="irr-cf-wrap">
-            <table class="irr-cf-tbl">
-              <thead><tr>
-                <th>연도</th><th>Phase</th>
-                <th style="color:var(--green)">임대수익</th>
-                <th style="color:var(--red)">매입이자</th>
-                <th style="color:var(--orange)">PF이자</th>
-                <th style="color:var(--yellow)">보유세</th>
-                <th style="color:var(--red)">건축비</th>
-                <th style="color:var(--blue)">순 CF</th>
-                <th>누적</th>
-                <th style="color:var(--blue)">자산가치</th>
-              </tr></thead>
-              <tbody>
-                <tr class="cf-init">
-                  <td>2025</td><td>매입</td>
-                  <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
-                  <td style="color:var(--red)">-${fSmall(equity)}</td>
-                  <td style="color:var(--red)">-${fSmall(equity)}</td>
-                  <td style="color:var(--blue)">${fSmall(buyOk)}</td>
-                </tr>
-                ${rows.map(r=>`<tr>
-                  <td>${r.cy}</td><td>${r.phase}</td>
-                  <td style="color:${r.rental>0?'var(--green)':'var(--t4)'}">${r.rental>0?'+'+fSmall(r.rental):'—'}</td>
-                  <td style="color:var(--red)">-${fSmall(Math.abs(r.interest))}</td>
-                  <td style="color:${r.constInt<0?'var(--orange)':'var(--t4)'}">${r.constInt<0?'-'+fSmall(Math.abs(r.constInt)):'—'}</td>
-                  <td style="color:var(--yellow)">-${fSmall(Math.abs(r.htax))}</td>
-                  <td style="color:${r.ccost<0?'var(--red)':'var(--t4)'}">${r.ccost<0?'-'+fSmall(Math.abs(r.ccost)):'—'}</td>
-                  <td style="color:${r.net>=0?'var(--green)':'var(--red)'};font-weight:700">${r.net>=0?'+':''}${fSmall(r.net)}</td>
-                  <td style="color:${r.cum>=0?'var(--t2)':'var(--red)'}">${r.cum>=0?'+':''}${fSmall(r.cum)}</td>
-                  <td style="color:var(--blue)">${fSmall(r.asset)}</td>
-                </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="irr-tc" id="irr-tab-sn">
-          <div style="margin-bottom:8px;font-size:12px;color:var(--t3)">시세 상승률(가로) × 대출 평균금리(세로) 조합별 IRR</div>
-          <div class="irr-sens-grid" id="irr-sensG" style="grid-template-columns:auto repeat(5,1fr)"></div>
-          <div style="margin-top:16px;margin-bottom:8px;font-size:12px;color:var(--t3)">신축 가치배수(가로) × 시세 상승률(세로) 조합별 IRR</div>
-          <div class="irr-sens-grid" id="irr-sensG2" style="grid-template-columns:auto repeat(5,1fr)"></div>
-        </div>
-        <div class="irr-tc" id="irr-tab-ch">
-          <div style="font-size:12px;color:var(--t3);margin-bottom:8px">연도별 순 캐시플로우 (억원)</div>
-          <div class="irr-chart-area" id="irr-chartArea"></div>
-        </div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:8px;font-weight:600">시세 상승률(가로) × 대출 평균금리(세로) 조합별 IRR</div>
+        <div class="irr-sens-grid" id="irr-sensG" style="grid-template-columns:auto repeat(5,1fr)"></div>
+        <div style="margin-top:20px;margin-bottom:8px;font-size:12px;color:var(--t3);font-weight:600">신축 가치배수(가로) × 시세 상승률(세로) 조합별 IRR</div>
+        <div class="irr-sens-grid" id="irr-sensG2" style="grid-template-columns:auto repeat(5,1fr)"></div>
+      </div>
+    </div>
+
+    <!-- ⑥ 시각화 -->
+    <div class="irr-sec">
+      <div class="irr-sec-head">
+        <div class="irr-sec-ic" style="background:rgba(108,72,245,.12);color:var(--purple)">📈</div>
+        연도별 순 캐시플로우 (억원)
+      </div>
+      <div class="irr-sec-body">
+        <div class="irr-chart-area" id="irr-chartArea"></div>
       </div>
     </div>
 
