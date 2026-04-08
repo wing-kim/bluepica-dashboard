@@ -2312,55 +2312,97 @@ function irrCalcRun(){
   };
 
   const curA=S.priceUp*100, curR=(S.rateA+S.rateB)/2*100;
+
+  /* 민감도 테이블 빌더 */
+  const buildSensTable=(rowSteps, colSteps, rowKey, colKey, rowFmt, colFmt, calcFn)=>{
+    const curRow=S[rowKey], curCol=S[colKey];
+    const nRow=rowSteps.reduce((bi,v,i)=>Math.abs(v-curRow)<Math.abs(rowSteps[bi]-curRow)?i:bi,0);
+    const nCol=colSteps.reduce((bi,v,i)=>Math.abs(v-curCol)<Math.abs(colSteps[bi]-curCol)?i:bi,0);
+    let t=`<table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="background:var(--s3)">
+        <th style="padding:8px 12px;text-align:left;font-size:10px;color:#8890aa;border:1px solid var(--border2);font-weight:600;white-space:nowrap">　</th>
+        ${colSteps.map((c,ci)=>`<th style="padding:8px 10px;text-align:center;font-size:10px;
+          color:${ci===nCol?'var(--t1)':'#8890aa'};
+          background:${ci===nCol?'rgba(59,127,255,.12)':'var(--s3)'};
+          border:1px solid ${ci===nCol?'rgba(59,127,255,.3)':'var(--border2)'};font-weight:600">
+          ${colFmt(c)}</th>`).join('')}
+      </tr></thead><tbody>`;
+    rowSteps.forEach((rv,ri)=>{
+      const isNR=ri===nRow;
+      t+=`<tr>
+        <td style="padding:8px 12px;font-family:var(--mono);font-size:10.5px;font-weight:600;
+          white-space:nowrap;
+          color:${isNR?'var(--t1)':'#8890aa'};
+          background:${isNR?'rgba(59,127,255,.08)':'var(--s2)'};
+          border:1px solid ${isNR?'rgba(59,127,255,.25)':'var(--border2)'}">
+          ${rowFmt(rv)}</td>`;
+      colSteps.forEach((cv,ci)=>{
+        const isNC=ci===nCol;
+        const v=calcFn({[rowKey]:rv,[colKey]:cv});
+        if(v===null){
+          t+=`<td style="text-align:center;color:var(--t4);font-size:10px;padding:7px 10px;border:1px solid rgba(42,48,80,.35)">—</td>`;
+        } else {
+          const pct=(v*100).toFixed(1)+'%';
+          let bg,tc,bord;
+          if(v<0){          bg='rgba(240,56,96,.22)'; tc='#ff6b6b'; bord='rgba(240,56,96,.4)';}
+          else if(v<0.05){  bg='rgba(245,188,48,.14)';tc='#f5bc30'; bord='rgba(245,188,48,.3)';}
+          else if(v<0.12){  bg='rgba(34,209,134,.14)';tc='#22d186'; bord='rgba(34,209,134,.3)';}
+          else{              bg='rgba(34,209,134,.25)';tc='#00ff9d'; bord='rgba(34,209,134,.5)';}
+          const ring=(isNR&&isNC)?`box-shadow:inset 0 0 0 2px ${bord};`:'';
+          t+=`<td style="text-align:center;background:${bg};border:1px solid ${bord};
+            font-family:var(--mono);font-size:11.5px;color:${tc};font-weight:700;
+            padding:7px 10px;${ring}">${pct}</td>`;
+        }
+      });
+      t+='</tr>';
+    });
+    return t+'</tbody></table>';
+  };
+
   const g1=document.getElementById('irr-sensG');
-  if(g1){
-    g1.innerHTML=`<div class="irr-sens-cell irr-sens-hdr"></div>`;
-    [1,2,3,5,7].forEach(ar=>{
-      g1.innerHTML+=`<div class="irr-sens-cell irr-sens-hdr">${ar}%</div>`;
-    });
-    [3,3.5,4.5,5.5,6.5].forEach(lr=>{
-      g1.innerHTML+=`<div class="irr-sens-cell irr-sens-row-hdr">금리 ${lr}%</div>`;
-      [1,2,3,5,7].forEach(ar=>{
-        const ti=calcSensIRR2({priceUp:ar/100,rateA:lr/100,rateB:lr/100});
-        const hl=Math.abs(ar-curA)<0.5&&Math.abs(lr-curR)<0.5;
-        g1.innerHTML+=scCell(ti,hl);
-      });
-    });
-  }
+  if(g1) g1.innerHTML=buildSensTable(
+    [0.03,0.035,0.045,0.055,0.065],[0.01,0.02,0.03,0.05,0.07],
+    'rateA','priceUp',
+    v=>'금리 '+(v*100).toFixed(1)+'%', v=>(v*100).toFixed(0)+'%',
+    ov=>calcSensIRR2({...ov, rateB:ov.rateA})
+  );
 
-  const curNV=S.valueMult;
   const g2=document.getElementById('irr-sensG2');
-  if(g2){
-    g2.innerHTML=`<div class="irr-sens-cell irr-sens-hdr"></div>`;
-    [1.2,1.5,1.8,2.2,2.8].forEach(nv=>{
-      g2.innerHTML+=`<div class="irr-sens-cell irr-sens-hdr">${nv.toFixed(1)}x</div>`;
-    });
-    [1,2,3,5,7].forEach(ar=>{
-      g2.innerHTML+=`<div class="irr-sens-cell irr-sens-row-hdr">시세 ${ar}%</div>`;
-      [1.2,1.5,1.8,2.2,2.8].forEach(nv=>{
-        const ti=calcSensIRR2({priceUp:ar/100,valueMult:nv});
-        const hl=Math.abs(ar-curA)<0.5&&Math.abs(nv-curNV)<0.1;
-        g2.innerHTML+=scCell(ti,hl);
-      });
-    });
-  }
+  if(g2) g2.innerHTML=buildSensTable(
+    [1.2,1.5,1.8,2.2,2.8],[0.01,0.02,0.03,0.05,0.07],
+    'valueMult','priceUp',
+    v=>v.toFixed(1)+'x', v=>(v*100).toFixed(0)+'%',
+    calcSensIRR2
+  );
 
-  /* ── 시각화 차트 ── */
+  /* ── SVG 막대 차트 (초기투자 제외, 스케일 안정화) ── */
   const ca=document.getElementById('irr-chartArea');
   if(ca){
-    const mx=Math.max(...rows.map(r=>Math.abs(r.net)),0.01);
-    ca.innerHTML=rows.map(r=>{
-      const h=Math.max(Math.abs(r.net)/mx*160,2);
-      const pos=r.net>=0;
-      return`<div class="irr-chart-col">
-        <div class="irr-chart-bwrap">
-          <div class="irr-chart-bar ${pos?'pos':'neg'}" style="height:${h}px">
-            <div class="irr-chart-val">${r.net>=0?'+':''}${fSmall(r.net)}</div>
-          </div>
-        </div>
-        <div class="irr-chart-lbl">${r.cy}</div>
-      </div>`;
-    }).join('');
+    // 초기투자(-equity)는 스케일에서 제외 — 운영 CF만 기준으로 스케일
+    const mx=Math.max(...rows.map(r=>Math.abs(r.net)),0.1);
+    const barW=44, gap=14, H=180, MID=H*0.55; // MID를 살짝 아래로 (음수 공간 확보)
+    const W=Math.max(500, rows.length*(barW+gap)+gap*2);
+    let svgBars='',svgXlbl='',svgZero='';
+    // 중심선
+    svgZero=`<line x1="0" y1="${MID}" x2="${W}" y2="${MID}" stroke="#2a3050" stroke-width="1.5"/>`;
+    rows.forEach((r,i)=>{
+      const x=gap+i*(barW+gap);
+      const maxH=MID-20; // 막대 최대 높이
+      const barH=Math.max(Math.abs(r.net)/mx*maxH, 2);
+      const isPos=r.net>=0;
+      const fill=isPos?'#22c98a':'#e84040';
+      const y=isPos?MID-barH:MID;
+      const lblY=isPos?y-5:y+barH+11;
+      const val=fSmall(Math.abs(r.net));
+      svgBars+=`<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${fill}" rx="3" opacity=".85"/>`;
+      svgBars+=`<text x="${x+barW/2}" y="${lblY}" text-anchor="middle" font-size="9" fill="${fill}" font-family="monospace" font-weight="600">${isPos?'+':'−'}${val}</text>`;
+      svgXlbl+=`<text x="${x+barW/2}" y="${H-2}" text-anchor="middle" font-size="9" fill="#4a5270">${r.cy}</text>`;
+    });
+    ca.style.overflowX='auto';
+    ca.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
+      style="width:${W}px;min-width:100%;height:${H}px;display:block">
+      ${svgZero}${svgBars}${svgXlbl}
+    </svg>`;
   }
 
 }
