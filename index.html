@@ -1,47 +1,703 @@
 <!DOCTYPE html>
-
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ALL 대시보드</title>
   <style>
-    body {
-      margin: 0;
-      padding: 40px;
-      font-family: sans-serif;
-      background: #0f172a;
-      color: white;
+    :root{
+      --bg:#071225;
+      --panel:#0b1730;
+      --panel-2:#0f1d3d;
+      --line:rgba(120,160,255,.15);
+      --text:#eef4ff;
+      --muted:#95a4c6;
+      --blue:#6f8cff;
+      --green:#52d3a6;
+      --yellow:#f2c35d;
+      --pink:#ff6fa9;
+      --violet:#ad7bff;
+      --shadow:0 18px 40px rgba(0,0,0,.35);
+      --radius:22px;
     }
 
-```
-h1 {
-  margin-bottom: 30px;
-}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family: Inter, "Pretendard", "Noto Sans KR", Arial, sans-serif;
+      color:var(--text);
+      background:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px),
+        radial-gradient(circle at top, rgba(61,105,255,.15), transparent 28%),
+        linear-gradient(180deg, #06101f 0%, #08152b 55%, #081122 100%);
+      background-size: 48px 48px, 48px 48px, auto, auto;
+      min-height:100vh;
+    }
 
-.card {
-  display: block;
-  padding: 20px;
-  margin-bottom: 15px;
-  border-radius: 10px;
-  background: #1e293b;
-  text-decoration: none;
-  color: white;
-  font-weight: bold;
-  transition: 0.2s;
-}
+    .wrap{
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px 24px 50px;
+    }
 
-.card:hover {
-  background: #334155;
-}
-```
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:22px;
+    }
 
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .brand-badge{
+      width:38px;height:38px;border-radius:12px;
+      background: linear-gradient(135deg, rgba(111,140,255,.28), rgba(173,123,255,.22));
+      border:1px solid rgba(255,255,255,.09);
+      display:grid;place-items:center;
+      box-shadow: inset 0 0 18px rgba(255,255,255,.05), 0 0 20px rgba(111,140,255,.16);
+      font-size:19px;
+    }
+
+    h1{
+      margin:0;
+      font-size:34px;
+      line-height:1.1;
+      letter-spacing:-0.02em;
+      font-weight:800;
+    }
+
+    .sub{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .status{
+      display:flex;align-items:center;gap:8px;
+      padding:10px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.07);
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .dot{
+      width:8px;height:8px;border-radius:50%;
+      background:#60d394;
+      box-shadow:0 0 12px #60d394;
+    }
+
+    .btn{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:10px 14px;
+      border-radius:14px;
+      cursor:pointer;
+      transition:.2s ease;
+      font-weight:600;
+    }
+    .btn:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.07);
+    }
+
+    .hero{
+      position:relative;
+      overflow:hidden;
+      background:linear-gradient(180deg, rgba(10,20,40,.95), rgba(10,18,34,.92));
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:28px;
+      box-shadow:var(--shadow);
+      margin-bottom:24px;
+    }
+    .hero:before{
+      content:"";
+      position:absolute; inset:auto -120px -120px auto;
+      width:320px; height:320px; border-radius:50%;
+      background:radial-gradient(circle, rgba(111,140,255,.25), transparent 70%);
+      pointer-events:none;
+    }
+
+    .hero-grid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+      align-items:stretch;
+    }
+
+    .hero-title{
+      margin:0 0 10px;
+      font-size:28px;
+      font-weight:800;
+      letter-spacing:-0.03em;
+    }
+
+    .hero-desc{
+      margin:0;
+      max-width:760px;
+      color:var(--muted);
+      line-height:1.65;
+      font-size:15px;
+    }
+
+    .mini-stats{
+      margin-top:20px;
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:14px;
+    }
+
+    .mini-card{
+      padding:16px 16px 14px;
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .mini-card .label{
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:8px;
+    }
+    .mini-card .value{
+      font-size:28px;
+      font-weight:800;
+      letter-spacing:-0.02em;
+    }
+
+    .hero-preview{
+      min-height:220px;
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.07);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)),
+        radial-gradient(circle at 20% 20%, rgba(111,140,255,.18), transparent 35%),
+        radial-gradient(circle at 80% 30%, rgba(82,211,166,.12), transparent 30%),
+        radial-gradient(circle at 50% 80%, rgba(255,111,169,.12), transparent 35%),
+        #0b1630;
+      position:relative;
+      overflow:hidden;
+      padding:18px;
+    }
+
+    .preview-window{
+      position:absolute;
+      inset:18px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.07);
+      background:linear-gradient(180deg, rgba(5,10,24,.6), rgba(8,14,28,.82));
+      padding:14px;
+    }
+    .preview-header{
+      display:flex; gap:8px; margin-bottom:14px;
+    }
+    .preview-header span{
+      width:10px; height:10px; border-radius:50%;
+      background:rgba(255,255,255,.25);
+    }
+    .preview-row{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:12px;
+      height:calc(100% - 24px);
+    }
+    .preview-block, .preview-block2{
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.03);
+      position:relative;
+      overflow:hidden;
+    }
+    .preview-block:before{
+      content:"";
+      position:absolute; inset:12px;
+      border-radius:12px;
+      background:
+        linear-gradient(90deg, transparent 0 12%, rgba(111,140,255,.35) 12% 18%, transparent 18% 100%),
+        linear-gradient(180deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size:auto, 100% 34px;
+    }
+    .preview-block2:before{
+      content:"";
+      position:absolute; inset:12px;
+      border-radius:12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.04) 0 22%, transparent 22% 100%),
+        radial-gradient(circle at 20% 60%, rgba(82,211,166,.5), transparent 18%),
+        radial-gradient(circle at 70% 40%, rgba(255,111,169,.42), transparent 16%),
+        radial-gradient(circle at 50% 80%, rgba(111,140,255,.46), transparent 15%);
+      opacity:.95;
+    }
+
+    .section-title{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin:28px 0 14px;
+    }
+    .section-title h2{
+      margin:0;
+      font-size:22px;
+      letter-spacing:-0.02em;
+    }
+    .section-title p{
+      margin:0;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .project-grid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap:20px;
+    }
+
+    .project-card{
+      position:relative;
+      overflow:hidden;
+      border-radius:24px;
+      background:
+        linear-gradient(180deg, rgba(14,28,56,.96), rgba(10,20,41,.94));
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:var(--shadow);
+      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+      min-height: 520px;
+      display:flex;
+      flex-direction:column;
+    }
+    .project-card:hover{
+      transform:translateY(-6px);
+      border-color:rgba(111,140,255,.32);
+      box-shadow:0 24px 48px rgba(0,0,0,.42), 0 0 28px rgba(111,140,255,.12);
+    }
+
+    .card-topline{
+      height:4px;
+      width:100%;
+      background:linear-gradient(90deg, var(--accent), transparent 85%);
+    }
+
+    .project-body{
+      padding:20px;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      flex:1;
+    }
+
+    .project-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+    }
+    .chip{
+      font-size:12px;
+      color:#dce6ff;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      border-radius:999px;
+      padding:8px 10px;
+      white-space:nowrap;
+    }
+    .project-name{
+      margin:0;
+      font-size:28px;
+      font-weight:800;
+      letter-spacing:-0.03em;
+    }
+    .project-desc{
+      margin:8px 0 0;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:14px;
+    }
+
+    .mock-image{
+      position:relative;
+      border-radius:20px;
+      min-height:180px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.08);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.01)),
+        var(--image-bg);
+    }
+    .mock-image:before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        linear-gradient(transparent 0 66%, rgba(0,0,0,.25) 100%),
+        linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px);
+      background-size:auto, 34px 34px, 34px 34px;
+      mix-blend-mode:screen;
+      opacity:.25;
+    }
+    .building{
+      position:absolute;
+      bottom:0;
+      left:14%;
+      width:72%;
+      height:76%;
+      background:linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.06));
+      clip-path:polygon(0 100%, 0 18%, 16% 12%, 16% 0, 84% 0, 84% 12%, 100% 18%, 100% 100%);
+      border:1px solid rgba(255,255,255,.15);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+    }
+    .building:before{
+      content:"";
+      position:absolute;
+      inset:12px;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.22) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.16) 1px, transparent 1px);
+      background-size: 22px 22px, 22px 22px;
+      opacity:.4;
+    }
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:12px;
+    }
+
+    .kpi{
+      border-radius:18px;
+      padding:14px;
+      background:rgba(255,255,255,.035);
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .kpi .label{
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:8px;
+    }
+    .kpi .value{
+      font-size:24px;
+      font-weight:800;
+      letter-spacing:-0.02em;
+    }
+
+    .feature-list{
+      display:grid;
+      gap:10px;
+      margin-top:4px;
+    }
+    .feature{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.05);
+    }
+    .feature strong{
+      font-size:14px;
+    }
+    .feature span{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .card-actions{
+      display:flex;
+      gap:10px;
+      margin-top:auto;
+      padding-top:4px;
+    }
+    .card-btn{
+      flex:1;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height:46px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--text);
+      text-decoration:none;
+      background:rgba(255,255,255,.04);
+      font-weight:700;
+      transition:.2s ease;
+    }
+    .card-btn.primary{
+      background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 28%, transparent), rgba(255,255,255,.03));
+      border-color:color-mix(in srgb, var(--accent) 55%, rgba(255,255,255,.12));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04), 0 0 18px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .card-btn:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.07);
+    }
+
+    .project-card.blue{ --accent: var(--blue); --image-bg:
+      radial-gradient(circle at 30% 25%, rgba(111,140,255,.45), transparent 22%),
+      radial-gradient(circle at 80% 20%, rgba(173,123,255,.18), transparent 18%),
+      linear-gradient(180deg, #1a2a5c 0%, #0f1835 100%);
+    }
+    .project-card.green{ --accent: var(--green); --image-bg:
+      radial-gradient(circle at 28% 30%, rgba(82,211,166,.36), transparent 22%),
+      radial-gradient(circle at 82% 18%, rgba(111,140,255,.15), transparent 18%),
+      linear-gradient(180deg, #163c3f 0%, #0d1c27 100%);
+    }
+    .project-card.violet{ --accent: var(--violet); --image-bg:
+      radial-gradient(circle at 34% 24%, rgba(173,123,255,.4), transparent 22%),
+      radial-gradient(circle at 82% 22%, rgba(242,195,93,.18), transparent 18%),
+      linear-gradient(180deg, #2b2557 0%, #11162d 100%);
+    }
+
+    .footer-note{
+      margin-top:18px;
+      color:var(--muted);
+      font-size:13px;
+      text-align:right;
+    }
+
+    @media (max-width: 1180px){
+      .hero-grid{grid-template-columns:1fr}
+      .project-grid{grid-template-columns:1fr}
+      .project-card{min-height:auto}
+    }
+    @media (max-width: 760px){
+      .wrap{padding:18px 14px 40px}
+      h1{font-size:28px}
+      .hero{padding:20px}
+      .mini-stats{grid-template-columns:1fr}
+      .kpi-grid{grid-template-columns:1fr}
+      .project-head{flex-direction:column}
+      .topbar{align-items:flex-start;flex-direction:column}
+      .card-actions{flex-direction:column}
+      .section-title{align-items:flex-start;flex-direction:column}
+    }
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-badge">📊</div>
+        <div>
+          <h1>ALL 대시보드</h1>
+          <div class="sub">프로젝트 허브 화면 · 블루피카 / 케이프혼타워 / 신축</div>
+        </div>
+      </div>
 
-<h1>📊 ALL 대시보드</h1>
+      <div class="top-actions">
+        <div class="status">
+          <span class="dot"></span>
+          <span>실행 상태 정상</span>
+        </div>
+        <button class="btn" onclick="location.reload()">새로고침</button>
+      </div>
+    </header>
 
-<a class="card" href="./newbuild/">🏗 신축 대시보드</a>
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <h2 class="hero-title">프로젝트를 한눈에 보고 바로 들어가는 메인 허브</h2>
+          <p class="hero-desc">
+            현재 전체 대시보드는 각 프로젝트로 이동하는 시작 화면 역할을 하도록 구성했습니다.
+            카드형 레이아웃으로 바꾸고, 건물 느낌의 비주얼 영역과 KPI, 주요 기능 요약을 함께 배치해
+            단순 링크 목록이 아니라 실제 대시보드처럼 보이도록 만들었습니다.
+          </p>
 
+          <div class="mini-stats">
+            <div class="mini-card">
+              <div class="label">총 프로젝트</div>
+              <div class="value">3</div>
+            </div>
+            <div class="mini-card">
+              <div class="label">활성 대시보드</div>
+              <div class="value">3</div>
+            </div>
+            <div class="mini-card">
+              <div class="label">메인 화면 타입</div>
+              <div class="value" style="font-size:20px;">카드형 허브</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-preview">
+          <div class="preview-window">
+            <div class="preview-header">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="preview-row">
+              <div class="preview-block"></div>
+              <div class="preview-block2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-title">
+      <div>
+        <h2>프로젝트 바로가기</h2>
+        <p>각 카드를 클릭하거나 아래 버튼으로 상세 대시보드로 이동할 수 있게 구성</p>
+      </div>
+    </div>
+
+    <section class="project-grid">
+      <article class="project-card blue" onclick="openProject('bluepica/index.html')">
+        <div class="card-topline"></div>
+        <div class="project-body">
+          <div class="project-head">
+            <div>
+              <h3 class="project-name">블루피카</h3>
+              <p class="project-desc">임대차계약, 수익 현황, 공실 관리 등 운영형 대시보드 중심 프로젝트</p>
+            </div>
+            <div class="chip">운영 관리</div>
+          </div>
+
+          <div class="mock-image" aria-hidden="true">
+            <div class="building"></div>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="label">총 계약 수</div>
+              <div class="value">18</div>
+            </div>
+            <div class="kpi">
+              <div class="label">공실률</div>
+              <div class="value">5%</div>
+            </div>
+            <div class="kpi">
+              <div class="label">월 임대수익</div>
+              <div class="value">1.2억</div>
+            </div>
+          </div>
+
+          <div class="feature-list">
+            <div class="feature"><strong>임대차계약현황</strong><span>계약 목록 / 만기일 / 그룹핑</span></div>
+            <div class="feature"><strong>캐시플로우 확인</strong><span>수입·지출 요약 반영</span></div>
+            <div class="feature"><strong>시트 연동 대응</strong><span>구글시트 기반 확장 가능</span></div>
+          </div>
+
+          <div class="card-actions">
+            <a class="card-btn primary" href="bluepica/index.html" onclick="event.stopPropagation()">대시보드 열기</a>
+            <a class="card-btn" href="#" onclick="event.preventDefault(); event.stopPropagation(); alert('미리보기/설정 영역은 추후 연결 가능')">미리보기</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card green" onclick="openProject('capehorn/index.html')">
+        <div class="card-topline"></div>
+        <div class="project-body">
+          <div class="project-head">
+            <div>
+              <h3 class="project-name">케이프혼타워</h3>
+              <p class="project-desc">건물 운영 현황, 임대료 추이, 계약 만기 예정 건을 빠르게 보는 관리용 허브</p>
+            </div>
+            <div class="chip">자산 관리</div>
+          </div>
+
+          <div class="mock-image" aria-hidden="true">
+            <div class="building" style="left:18%; width:64%; height:82%;"></div>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="label">평균 임대료</div>
+              <div class="value">320만</div>
+            </div>
+            <div class="kpi">
+              <div class="label">만기 예정</div>
+              <div class="value">3건</div>
+            </div>
+            <div class="kpi">
+              <div class="label">월 매출</div>
+              <div class="value">2.5억</div>
+            </div>
+          </div>
+
+          <div class="feature-list">
+            <div class="feature"><strong>계약 만기 모니터링</strong><span>재계약·명도 일정 체크</span></div>
+            <div class="feature"><strong>운영 KPI 요약</strong><span>월 매출 / 평균 임대료</span></div>
+            <div class="feature"><strong>추가 탭 확장 가능</strong><span>건물별 맞춤형 화면 구성</span></div>
+          </div>
+
+          <div class="card-actions">
+            <a class="card-btn primary" href="capehorn/index.html" onclick="event.stopPropagation()">대시보드 열기</a>
+            <a class="card-btn" href="#" onclick="event.preventDefault(); event.stopPropagation(); alert('미리보기/설정 영역은 추후 연결 가능')">미리보기</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card violet" onclick="openProject('sinchuk/index.html')">
+        <div class="card-topline"></div>
+        <div class="project-body">
+          <div class="project-head">
+            <div>
+              <h3 class="project-name">신축</h3>
+              <p class="project-desc">프로젝트 타임라인, 신축 IRR, 개인·법인 비용까지 연결되는 개발형 대시보드</p>
+            </div>
+            <div class="chip">개발 사업</div>
+          </div>
+
+          <div class="mock-image" aria-hidden="true">
+            <div class="building" style="left:12%; width:76%; height:74%;"></div>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="label">예상 IRR</div>
+              <div class="value">14.2%</div>
+            </div>
+            <div class="kpi">
+              <div class="label">총 투자비</div>
+              <div class="value">110억</div>
+            </div>
+            <div class="kpi">
+              <div class="label">착공 예정</div>
+              <div class="value">2029</div>
+            </div>
+          </div>
+
+          <div class="feature-list">
+            <div class="feature"><strong>프로젝트 타임라인</strong><span>설계·심의·착공 일정 시각화</span></div>
+            <div class="feature"><strong>IRR/CF 시뮬레이션</strong><span>연도별 현금흐름 확인</span></div>
+            <div class="feature"><strong>개인/법인 비용</strong><span>비용 구분 및 상세 분석</span></div>
+          </div>
+
+          <div class="card-actions">
+            <a class="card-btn primary" href="sinchuk/index.html" onclick="event.stopPropagation()">대시보드 열기</a>
+            <a class="card-btn" href="#" onclick="event.preventDefault(); event.stopPropagation(); alert('미리보기/설정 영역은 추후 연결 가능')">미리보기</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="footer-note">
+      샘플 KPI/텍스트/링크 경로는 필요에 맞게 바로 수정해서 사용 가능
+    </div>
+  </div>
+
+  <script>
+    function openProject(path){
+      if(!path) return;
+      window.location.href = path;
+    }
+  </script>
 </body>
 </html>
