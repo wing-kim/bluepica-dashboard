@@ -1308,6 +1308,8 @@ function renderIRR(rows){
     addrIdx:-1,areaIdx:-1,buyPriceIdx:-1,loanIdx:-1,
     depositIdx:-1,rentIdx:-1,landPrIdx:-1,landTotIdx:-1
   };
+  /* 필지별 매입가 — 장특공 가중치 계산용 */
+  window._irrProps = { A: propA, B: propB };
 
   const CARD_ACCENTS=['#4F7CFF','#3a6ee8'];
 
@@ -1726,23 +1728,33 @@ function progressiveTaxCalc(ti){
   return 0;
 }
 
-/* 보유세 자동 계산 (시뮬레이터 16 방식 - 공시지가 기반) */
-function calcPropTax(landValOk, totalBuy){
-  /* landValOk: 공시지가 합계(원), totalBuy: 매입가(원) */
-  const assessedVal = landValOk || totalBuy * 0.7;
-  const propTaxBase = assessedVal * 0.6;
-  const buildingTax = propTaxBase * 0.0025;
-  const landTax     = propTaxBase * 0.004;
-  const rawPropTax  = buildingTax + landTax;
-  const cityTax     = rawPropTax * 0.14;
-  const eduTax      = rawPropTax * 0.20;
-  return {
-    bldgTax: buildingTax,
-    landTax: landTax,
-    urbanTax: cityTax,
-    eduTax: eduTax,
-    totalTax: rawPropTax + cityTax + eduTax
-  };
+/* 보유세 계산 — 토지/건물 분리 누진세율 적용
+   landPrice: 공시지가(원), buildingValue: 건물가치(원), isNew: 신축여부
+   반환: 재산세 + 도시지역분(14%) + 교육세(20%) 합계 (원) */
+function calcPropertyTax(landPrice, buildingValue, isNew){
+  /* 토지 재산세 (누진) */
+  const landBase = landPrice * 0.7;
+  let landTax = 0;
+  if      (landBase <= 60000000)  landTax = landBase * 0.001;
+  else if (landBase <= 150000000) landTax = 60000000*0.001 + (landBase-60000000)*0.0015;
+  else if (landBase <= 300000000) landTax = 60000000*0.001 + 90000000*0.0015 + (landBase-150000000)*0.0025;
+  else                            landTax = 60000000*0.001 + 90000000*0.0015 + 150000000*0.0025 + (landBase-300000000)*0.004;
+
+  /* 건물 재산세 (신축: 단일세율 0.25%, 기존: 누진) */
+  const buildingBase = buildingValue * 0.7;
+  let buildingTax = 0;
+  if (isNew) {
+    buildingTax = buildingBase * 0.0025;
+  } else {
+    if      (buildingBase <= 60000000)  buildingTax = buildingBase * 0.001;
+    else if (buildingBase <= 150000000) buildingTax = 60000000*0.001 + (buildingBase-60000000)*0.0015;
+    else if (buildingBase <= 300000000) buildingTax = 60000000*0.001 + 90000000*0.0015 + (buildingBase-150000000)*0.0025;
+    else                                buildingTax = 60000000*0.001 + 90000000*0.0015 + 150000000*0.0025 + (buildingBase-300000000)*0.004;
+  }
+
+  /* 합계 + 도시지역분(14%) + 교육세(20%) */
+  const propertyTax = landTax + buildingTax;
+  return propertyTax * 1.34;  /* ×(1 + 0.14 + 0.20) */
 }
 
 /* 탭 전환 (결과 내 탭) */
@@ -1871,31 +1883,33 @@ function irrCalcRun(){
   const constEquity    = constCostOk - constLoan;
   const constLoanInt   = constLoan * S.pfRate;   // 신축대출 연 이자 (억)
 
-  /* ── 보유세 계산 (calcPropTax 함수로 정확 계산, 배수 추정 금지) ──
-     기존 보유세: 토지가치 + 기존건물가치(매입가 기준)
-     신축 후 보유세: 토지가치 + 신축건물가치(공사비 × 0.4) */
-  const landValRaw   = sd._totalLandVal || 0;                     // 원 단위
-  const bldgValRaw   = (sd._totalBuy    || 0) - landValRaw;       // 기존 건물가치 (원)
-  const newBldgRaw   = (S.constCost + S.designCost) * 0.4;        // 신축 건물 시가표준액 (원)
+  /* ── 보유세 계산 (토지/건물 분리, 누진세율 적용) ──
+     landValRaw  : 공시지가 합계 (원)
+     bldgValRaw  : 기존 건물가치 = 매입가 - 토지가치 (원)
+     newBldgRaw  : 신축 건물 시가표준액 = 공사비 × 0.4 (원) */
+  const landValRaw  = sd._totalLandVal || 0;
+  const bldgValRaw  = Math.max(0, (sd._totalBuy || 0) - landValRaw);
+  const newBldgRaw  = (S.constCost + S.designCost) * 0.4;
 
-  /* calcPropTax(landVal원, buildingVal원) */
-  const holdTax    = calcPropTax(landValRaw, bldgValRaw > 0 ? bldgValRaw : (sd._totalBuy||0));
-  const newHTax    = calcPropTax(landValRaw, newBldgRaw);
+  /* 반환값은 원(原) 단위 총액 */
+  const holdTaxTotal    = calcPropertyTax(landValRaw, bldgValRaw, false);
+  const newHoldTaxTotal = calcPropertyTax(landValRaw, newBldgRaw,  true);
 
-  const holdTaxOk = {
-    totalTax : holdTax.totalTax  / W,
-    bldgTax  : holdTax.bldgTax   / W,
-    landTax  : holdTax.landTax   / W,
-    urbanTax : holdTax.urbanTax  / W,
-    eduTax   : holdTax.eduTax    / W,
-  };
-  const newHoldTaxOk = {
-    totalTax : newHTax.totalTax  / W,
-    bldgTax  : newHTax.bldgTax   / W,
-    landTax  : newHTax.landTax   / W,
-    urbanTax : newHTax.urbanTax  / W,
-    eduTax   : newHTax.eduTax    / W,
-  };
+  /* 억 단위 변환 (CF 계산용) */
+  const holdTaxOk    = { totalTax: holdTaxTotal    / W };
+  const newHoldTaxOk = { totalTax: newHoldTaxTotal / W };
+
+  /* ── 장기보유특별공제 가중치 — 시트 실제 매입가 비율 사용 (하드코딩 제거) ──
+     buyA_ok, buyB_ok: 필지별 매입가 (억)
+     w1 = buyA / (buyA+buyB), w2 = buyB / (buyA+buyB) */
+  const buyA_ok = (sd._loanA != null ? (propA?.buyP||0) : (sd._totalBuy||0)/2) / W;
+  const buyB_ok = (sd._loanB != null ? (propB?.buyP||0) : (sd._totalBuy||0)/2) / W;
+  /* propA/propB는 renderIRR에서 window._irrProps로 노출 */
+  const _buyA = (window._irrProps?.A?.buyP || 0) / W  || buyA_ok;
+  const _buyB = (window._irrProps?.B?.buyP || 0) / W  || buyB_ok;
+  const _totalBuyOk = (_buyA + _buyB) || buyOk;
+  const _w1 = _buyA / _totalBuyOk;
+  const _w2 = _buyB / _totalBuyOk;
 
   /* 신축 후 연 임대수익 (억/년) */
   const newAnnualRent = newRentAok * 12;  // 억/월 × 12
@@ -1905,9 +1919,8 @@ function irrCalcRun(){
   const _holdYrs5298 = 2025 + S.totalYrs - 2025;
   const _lthd529     = lthdRateCalc(_holdYrs529);
   const _lthd5298    = lthdRateCalc(_holdYrs5298);
-  const _w1 = sd._isStructureB && sd._buy529  ? (sd._buy529 /W)/buyOk : (291.0512/buyOk);
-  const _w2 = sd._isStructureB && sd._buy5298 ? (sd._buy5298/W)/buyOk : (151.15  /buyOk);
-  const lthdAvg = _lthd529*_w1 + _lthd5298*_w2;  // 민감도 함수에서도 참조
+  /* 가중치: 하드코딩 제거 → 시트 실제 매입가 비율 사용 */
+  const lthdAvg = _lthd529 * _w1 + _lthd5298 * _w2;
 
   /* ── 연도별 현금흐름 배열 구성 (억 단위) ── */
   const rows = [];
@@ -2312,12 +2325,10 @@ function irrCalcRun(){
       : loanOk*(so.rateA+so.rateB)/2;
     const pfL2=cc2*so.pfRatio;
     const pfI2=pfL2*so.pfRate;
-    /* 보유세: calcPropTax 동일 로직 */
-    const ht2  = calcPropTax(landValRaw, bldgValRaw>0?bldgValRaw:(sd._totalBuy||0));
-    const ht2ok= ht2.totalTax/W;
-    const nBldg2= (so.constCost+so.designCost)*0.4;
-    const nht2  = calcPropTax(landValRaw, nBldg2);
-    const nht2ok= nht2.totalTax/W;
+    /* 보유세: calcPropertyTax 동일 로직 */
+    const ht2ok  = calcPropertyTax(landValRaw, bldgValRaw, false) / W;
+    const nBldg2 = (so.constCost+so.designCost)*0.4;
+    const nht2ok = calcPropertyTax(landValRaw, nBldg2, true)      / W;
     const cfs=[-eq2];
     for(let yr=1;yr<=so.totalYrs;yr++){
       const arb2=(sd._totalRent/W)*12;
@@ -2333,7 +2344,7 @@ function irrCalcRun(){
       if(yr===so.totalYrs){
         const sp2=buyOk*so.valueMult*Math.pow(1+so.priceUp,so.totalYrs);
         const g2=sp2-buyOk-cc2-buyOk*so.acqTaxRate;
-        const la2=Math.max(0,g2)*lthdAvg;  // 메인 계산의 lthdAvg 재사용
+        const la2=Math.max(0,g2)*lthdAvg;
         const tg2=Math.max(0,g2-la2);
         const cgt2=progressiveTaxCalc(Math.max(0,tg2-0.025))*1.1;
         const ns2=sp2-loanOk-pfL2-cgt2+depOk;
